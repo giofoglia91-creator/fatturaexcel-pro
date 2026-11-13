@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="it" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FatturaExcel Pro — Converti Fatture Elettroniche XML e P7M in Excel (.xlsx)</title>
+    <meta name="description" content="Converti massivamente decine o centinaia di file FatturaPA (.xml e .xml.p7m) dell'Agenzia delle Entrate in un file Excel pulito per il commercialista. 100% nel browser, zero upload su server, GDPR Safe.">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- SheetJS (XLSX) per generazione reale di file Excel multi-foglio -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Effetto sfocatura professionale per le righe oltre la soglia gratuita */
+        .paywall-blur {
+            filter: blur(5.5px);
+            user-select: none;
+            pointer-events: none;
+            opacity: 0.72;
+            transition: filter 0.35s ease, opacity 0.35s ease;
+        }
+        .unlocked .paywall-blur {
+            filter: none;
+            user-select: auto;
+            pointer-events: auto;
+            opacity: 1;
+        }
+        /* Animazione morbida per la dropzone */
+        .dropzone-active {
+            border-color: #059669 !important;
+            background-color: #ecfdf5 !important;
+            transform: scale(1.01);
+        }
+        /* Scrollbar pulita per tabella */
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col selection:bg-emerald-500/20 selection:text-emerald-900">
+
+    <!-- ===================================================================== -->
+    <!-- HEADER / NAVBAR                                                       -->
+    <!-- ===================================================================== -->
+    <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Logo -->
+            <a href="#" class="flex items-center gap-2.5 group">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-900/15 group-hover:scale-105 transition">
+                    <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="font-extrabold text-lg tracking-tight text-slate-900">FatturaExcel <span class="text-emerald-600">Pro</span></span>
+                    <span class="hidden sm:inline-block ml-2 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                        FatturaPA v1.2
+                    </span>
+                </div>
+            </a>
+
+            <!-- Badge Sicurezza GDPR & Navigazione -->
+            <div class="flex items-center gap-3 sm:gap-5">
+                <div class="hidden md:flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-full">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+                    <span>100% Locale nel Browser • Zero Upload Server (GDPR Safe)</span>
+                </div>
+                <a href="#come-funziona" class="hidden sm:inline text-xs font-semibold text-slate-600 hover:text-slate-900 transition">Come funziona</a>
+                <a href="#faq" class="hidden sm:inline text-xs font-semibold text-slate-600 hover:text-slate-900 transition">FAQ</a>
+                <button onclick="openCheckoutModal()" id="header-unlock-btn" class="text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>Licenza Pro €7,90</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Toast Notifications Container (Sostituisce alert()) -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- ===================================================================== -->
+    <!-- HERO SECTION & DROPZONE                                               -->
+    <!-- ===================================================================== -->
+    <main class="flex-1">
+        <section class="relative overflow-hidden pt-8 pb-10 sm:pt-12 sm:pb-14 border-b border-slate-200/80 bg-gradient-to-b from-white to-slate-50">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                
+                <!-- Top Pill -->
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Supporta file <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-700">.xml</code> e firmati <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-700">.xml.p7m</code>
+                </div>
+
+                <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.15] max-w-3xl mx-auto">
+                    Trasforma le tue <span class="text-emerald-600">Fatture Elettroniche</span> in un Excel perfetto in 5 secondi.
+                </h1>
+
+                <p class="mt-4 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                    Trascina decine o centinaia di file scaricati dal Cassetto Fiscale. Estraiamo automaticamente <strong>Fornitore, P.IVA, Imponibile, IVA, Note di Credito e Scadenze</strong> in un foglio Excel multi-scheda pronto per il commercialista.
+                </p>
+
+                <!-- DROPZONE CARD -->
+                <div class="mt-8 max-w-3xl mx-auto">
+                    <div 
+                        id="dropzone" 
+                        onclick="document.getElementById('file-input').click()"
+                        class="relative group cursor-pointer bg-white border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-3xl p-8 sm:p-11 transition-all duration-200 shadow-lg shadow-slate-200/60"
+                    >
+                        <input type="file" id="file-input" multiple accept=".xml,.p7m,text/xml,application/pkcs7-mime" class="hidden" onchange="handleFileSelect(event)">
+                        
+                        <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 border border-emerald-200/80 flex items-center justify-center text-emerald-600 transition-transform group-hover:scale-105 mb-4">
+                            <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+                        </div>
+
+                        <h2 class="text-lg sm:text-xl font-bold text-slate-900">
+                            Trascina qui i tuoi file <span class="text-emerald-600">.xml</span> o <span class="text-emerald-600">.xml.p7m</span>
+                        </h2>
+                        <p class="mt-1.5 text-sm text-slate-500">
+                            oppure <span class="text-emerald-600 font-semibold underline decoration-emerald-300 underline-offset-4">clicca per selezionare una cartella o più file</span> dal computer
+                        </p>
+
+                        <div class="mt-5 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
+                            <span class="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg">
+                                <i data-lucide="lock" class="w-3.5 h-3.5 text-emerald-600"></i> Nessun file inviato a server esterni
+                            </span>
+                            <span class="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg">
+                                <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> Prime 3 fatture gratis in chiaro
+                            </span>
+                            <span class="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg">
+                                <i data-lucide="calculator" class="w-3.5 h-3.5 text-blue-600"></i> Segno negativo automatico su TD04
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Pulsante Demo Istantanea -->
+                    <div class="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <button onclick="loadDemoInvoices()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
+                            <i data-lucide="play-circle" class="w-4 h-4 text-emerald-400"></i>
+                            <span>Non hai file sottomano? Carica 6 Fatture Demo Reali (incluso .p7m e TD04)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- WORKSPACE RISULTATI, KPI, TABELLA E PAYWALL                           -->
+        <!-- ===================================================================== -->
+        <section id="results-section" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6">
+            
+            <!-- Barra Azioni Principale -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div id="status-badge-icon" class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base sm:text-lg font-bold text-slate-900">
+                                <span id="count-total-title">0</span> Fatture Elaborate
+                            </h2>
+                            <span id="license-status-pill" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                Anteprima Gratuita (3 righe)
+                            </span>
+                        </div>
+                        <p id="parse-summary-subtitle" class="text-xs text-slate-500 mt-0.5">
+                            Elaborazione completata localmente nel browser.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Bottoni Aggiungi / Scarica / Sblocca -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="document.getElementById('file-input').click()" class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition flex items-center gap-1.5">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Aggiungi altri file</span>
+                    </button>
+
+                    <button onclick="clearInvoices()" class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-xs font-semibold transition flex items-center gap-1.5">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Svuota</span>
+                    </button>
+
+                    <!-- Bottone Export CSV (disponibile per test o sbloccato) -->
+                    <button onclick="handleExportRequest('csv')" class="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                        <i data-lucide="file-text" class="w-4 h-4 text-slate-500"></i>
+                        <span>Esporta CSV</span>
+                    </button>
+
+                    <!-- Bottone Principale Excel (.xlsx) -->
+                    <button id="btn-export-xlsx" onclick="handleExportRequest('xlsx')" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold transition flex items-center gap-2 shadow-md shadow-emerald-900/15">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        <span id="btn-export-xlsx-label">Scarica Excel (.xlsx)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4 KPI CARDS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+                        <span>Documenti Elaborati</span>
+                        <i data-lucide="files" class="w-4 h-4 text-slate-400"></i>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span id="kpi-count" class="text-2xl font-extrabold text-slate-900 font-mono">0</span>
+                        <span id="kpi-types-breakdown" class="text-xs text-slate-500">0 fatture</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+                        <span>Totale Imponibile</span>
+                        <i data-lucide="layers" class="w-4 h-4 text-blue-500"></i>
+                    </div>
+                    <div class="mt-2">
+                        <span id="kpi-imponibile" class="text-2xl font-extrabold text-slate-900 font-mono">€ 0,00</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Al netto di eventuali Note di Credito</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+                        <span>Totale IVA</span>
+                        <i data-lucide="percent" class="w-4 h-4 text-amber-500"></i>
+                    </div>
+                    <div class="mt-2">
+                        <span id="kpi-iva" class="text-2xl font-extrabold text-slate-900 font-mono">€ 0,00</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Somma imposta da DatiRiepilogo</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/40 shadow-sm">
+                    <div class="flex items-center justify-between text-emerald-800 text-xs font-semibold">
+                        <span>Totale Documenti</span>
+                        <i data-lucide="wallet" class="w-4 h-4 text-emerald-600"></i>
+                    </div>
+                    <div class="mt-2">
+                        <span id="kpi-totale" class="text-2xl font-extrabold text-emerald-700 font-mono">€ 0,00</span>
+                    </div>
+                    <p class="text-[11px] text-emerald-700/70 mt-1">Importo complessivo lordo</p>
+                </div>
+            </div>
+
+            <!-- BANNER PAYWALL AD ALTA CONVERSIONE (Visibile se > 3 fatture e non ancora sbloccato) -->
+            <div id="paywall-banner" class="hidden bg-gradient-to-r from-slate-900 via-slate-850 to-emerald-950 text-white rounded-2xl p-5 sm:p-6 shadow-xl border border-slate-700">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                    <div class="space-y-1.5">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-xs font-semibold">
+                            <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                            <span>Anteprima Gratuita: Prime 3 fatture su <span id="banner-total-count">0</span> sbloccate</span>
+                        </div>
+                        <h3 class="text-lg sm:text-xl font-bold text-white">
+                            Sblocca tutte le <span id="banner-total-count-2" class="text-emerald-400">0</span> righe ed esporta il file Excel (.xlsx) completo
+                        </h3>
+                        <p class="text-xs sm:text-sm text-slate-300 max-w-2xl">
+                            Include 2 fogli Excel pronti per il commercialista: <strong>Elenco Dettagliato Fatture</strong> + <strong>Riepilogo Automatico per Aliquota IVA e Fornitore</strong>. Pagamento unico, nessun abbonamento.
+                        </p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                        <button onclick="openCheckoutModal()" class="px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50">
+                            <i data-lucide="unlock" class="w-4 h-4"></i>
+                            <span>Sblocca Tutto ed Esporta — €7,90</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BARRA RICERCA E FILTRI TABELLA -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
+                    <div class="relative flex-1 max-w-md">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
+                        <input 
+                            type="text" 
+                            id="search-input" 
+                            oninput="renderTable()" 
+                            placeholder="Cerca per fornitore, P.IVA, numero fattura o descrizione..." 
+                            class="w-full bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm outline-none transition"
+                        >
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="filter-type" onchange="renderTable()" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-emerald-500">
+                            <option value="ALL">Tutti i documenti</option>
+                            <option value="TD01">Solo Fatture (TD01 / TD24)</option>
+                            <option value="TD04">Solo Note di Credito (TD04)</option>
+                            <option value="P7M">Solo Firmati (.p7m)</option>
+                        </select>
+
+                        <select id="sort-order" onchange="renderTable()" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-emerald-500">
+                            <option value="date-desc">Data: più recenti prima</option>
+                            <option value="date-asc">Data: meno recenti prima</option>
+                            <option value="amount-desc">Importo: dal più alto</option>
+                            <option value="supplier-asc">Fornitore: A → Z</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- TABELLA RESPONSIVE -->
+                <div id="table-wrapper" class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                                <th class="py-3.5 px-4">#</th>
+                                <th class="py-3.5 px-4">Data</th>
+                                <th class="py-3.5 px-4">Numero & Tipo</th>
+                                <th class="py-3.5 px-4">Cedente / Fornitore</th>
+                                <th class="py-3.5 px-4">P.IVA / CF</th>
+                                <th class="py-3.5 px-4 text-right">Imponibile</th>
+                                <th class="py-3.5 px-4 text-right">IVA</th>
+                                <th class="py-3.5 px-4 text-center">Aliquote</th>
+                                <th class="py-3.5 px-4 text-right">Totale Doc.</th>
+                                <th class="py-3.5 px-4">Pagamento</th>
+                                <th class="py-3.5 px-4">Descrizione</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoices-tbody" class="divide-y divide-slate-200 text-xs sm:text-sm">
+                            <!-- Righe iniettate dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer Tabella con CTA ripetuta se bloccato -->
+                <div id="table-footer-cta" class="hidden p-5 bg-slate-50 border-t border-slate-200 text-center">
+                    <p class="text-xs text-slate-600 mb-3">
+                        Stai visualizzando l'anteprima gratuita delle prime <strong>3 fatture</strong>. Sblocca il file completo per visualizzare ed esportare tutte le <strong><span id="footer-hidden-count">0</span></strong> righe in Excel.
+                    </p>
+                    <button onclick="openCheckoutModal()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold transition shadow-sm">
+                        <i data-lucide="unlock" class="w-4 h-4"></i>
+                        <span>Sblocca Esportazione Completa — €7,90</span>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- SEZIONE COME FUNZIONA & VANTAGGI PER IL COMMERCIALISTA                 -->
+        <!-- ===================================================================== -->
+        <section id="come-funziona" class="py-14 sm:py-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Pensato per Partite IVA, Studi e PMI</span>
+                <h2 class="mt-2 text-2xl sm:text-3xl font-extrabold text-slate-900">Basta aprire i file XML uno per uno</h2>
+                <p class="mt-3 text-sm sm:text-base text-slate-600">
+                    Il Cassetto Fiscale dell'Agenzia delle Entrate esporta pacchetti di file illeggibili. FatturaExcel Pro li normalizza in un secondo.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 border border-emerald-100">
+                        <i data-lucide="file-key-2" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-base text-slate-900">Decodifica nativa .XML e .P7M</h3>
+                    <p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                        Rimuove automaticamente la busta crittografica PKCS#7 dei file firmati digitalmente (<code class="font-mono text-xs bg-slate-100 px-1 rounded">.xml.p7m</code>) senza dover usare software esterni come Dike o ArubaSign.
+                    </p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 border border-blue-100">
+                        <i data-lucide="table-2" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-base text-slate-900">Excel Multi-Foglio Professionale</h3>
+                    <p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                        Genera un file <code class="font-mono text-xs bg-slate-100 px-1 rounded">.xlsx</code> nativo con <strong>Foglio 1 (Elenco Fatture)</strong> e <strong>Foglio 2 (Riepilogo per Aliquota IVA e Fornitore)</strong>, con numeri già formattati per somme e tabelle pivot.
+                    </p>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 border border-amber-100">
+                        <i data-lucide="shield" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-base text-slate-900">Riservatezza Totale (Zero Cloud)</h3>
+                    <p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                        Tutto il codice gira nella memoria del tuo browser. I dati dei tuoi clienti, fornitori e fatturati <strong>non vengono mai trasmessi</strong> a nessun server.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- SEZIONE FAQ                                                           -->
+        <!-- ===================================================================== -->
+        <section id="faq" class="py-12 border-t border-slate-200 bg-white">
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-2xl font-extrabold text-slate-900 text-center mb-8">Domande Frequenti</h2>
+                <div class="space-y-4">
+                    <details class="group bg-slate-50 border border-slate-200 rounded-2xl p-5" open>
+                        <summary class="flex items-center justify-between font-bold text-sm sm:text-base text-slate-900 cursor-pointer list-none">
+                            <span>I miei file XML vengono caricati su un server?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 group-open:rotate-180 transition"></i>
+                        </summary>
+                        <p class="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            No, mai. FatturaExcel Pro elabora i file XML e P7M interamente sul tuo dispositivo tramite JavaScript. Puoi persino staccare la connessione Internet dopo aver aperto la pagina e la conversione continuerà a funzionare.
+                        </p>
+                    </details>
+
+                    <details class="group bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                        <summary class="flex items-center justify-between font-bold text-sm sm:text-base text-slate-900 cursor-pointer list-none">
+                            <span>Come vengono gestite le Note di Credito (TD04)?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 group-open:rotate-180 transition"></i>
+                        </summary>
+                        <p class="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            Il parser riconosce automaticamente il tag <code class="font-mono text-xs bg-white px-1 border rounded">&lt;TipoDocumento&gt;TD04&lt;/TipoDocumento&gt;</code> e applica il segno negativo (<code class="font-mono text-xs">-</code>) a Imponibile, IVA e Totale Documento, così la somma della colonna Excel restituisce il saldo contabile esatto.
+                        </p>
+                    </details>
+
+                    <details class="group bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                        <summary class="flex items-center justify-between font-bold text-sm sm:text-base text-slate-900 cursor-pointer list-none">
+                            <span>Il pagamento di €7,90 è un abbonamento?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 group-open:rotate-180 transition"></i>
+                        </summary>
+                        <p class="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            No. È un pagamento unico una tantum che sblocca immediatamente l'esportazione illimitata nella sessione corrente e ti fornisce un codice licenza riutilizzabile.
+                        </p>
+                    </details>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- FOOTER                                                                -->
+    <!-- ===================================================================== -->
+    <footer class="bg-slate-900 text-slate-400 py-8 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-white">FatturaExcel Pro</span>
+                <span>•</span>
+                <span>Compatibile con tracciato FatturaPA v1.2.2 (Agenzia delle Entrate)</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span>Elaborazione 100% Client-Side</span>
+                <span>•</span>
+                <span>Privacy & GDPR Compliant</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===================================================================== -->
+    <!-- MODALE CHECKOUT PAYWALL (PREDISPOSTA PER LEMON SQUEEZY / STRIPE)      -->
+    <!-- ===================================================================== -->
+    <div id="checkout-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            
+            <!-- Header Modale -->
+            <div class="bg-slate-900 text-white p-6 relative">
+                <button onclick="closeCheckoutModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-semibold mb-2">
+                    <i data-lucide="zap" class="w-3 h-3"></i> Sblocco Istantaneo
+                </span>
+                <h3 class="text-xl font-extrabold">Esportazione Excel Completa</h3>
+                <p class="text-xs text-slate-300 mt-1">
+                    Sblocca tutte le fatture caricate ed esporta il file <code class="font-mono text-emerald-300">.xlsx</code> multi-foglio.
+                </p>
+            </div>
+
+            <!-- Body Modale -->
+            <div class="p-6 space-y-5">
+                <div class="flex items-baseline justify-between border-b border-slate-100 pb-4">
+                    <div>
+                        <span class="text-sm font-bold text-slate-900 block">Licenza Singola / Sessione Illimitata</span>
+                        <span class="text-xs text-slate-500">Pagamento unico • Ricevuta fiscale inclusa</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-3xl font-extrabold text-slate-900">€7,90</span>
+                        <span class="block text-[10px] text-slate-400">IVA inclusa</span>
+                    </div>
+                </div>
+
+                <ul class="space-y-2.5 text-xs text-slate-700">
+                    <li class="flex items-center gap-2">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+                        <span>Esportazione illimitata di file <strong>.xml</strong> e <strong>.xml.p7m</strong></span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+                        <span>File <strong>.xlsx</strong> con Foglio Dettaglio + Foglio Riepilogo IVA</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+                        <span>Calcolo automatico Note di Credito (TD04) e scadenze</span>
+                    </li>
+                </ul>
+
+                <!-- Bottone Checkout Reale (Da collegare al tuo link Lemon Squeezy / Stripe) -->
+                <a 
+                    id="real-payment-link"
+                    href="https://buy.stripe.com/5kQ4gBcrsfaH4MFbbx5os00" 
+                    onclick="handleRealCheckoutClick(event)"
+                    class="w-full py-3.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/15"
+                >
+                    <i data-lucide="credit-card" class="w-4 h-4"></i>
+                    <span>Procedi al Pagamento Sicuro — €7,90</span>
+                </a>
+
+                <!-- Sezione Codice Licenza già acquistato -->
+                <div class="pt-2 border-t border-slate-100">
+                    <label class="block text-[11px] font-semibold text-slate-500 mb-1.5">Hai già un codice licenza? Inseriscilo qui:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="license-code-input" placeholder="es. FATTURA-PRO-2026" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono uppercase outline-none focus:border-emerald-500">
+                        <button onclick="verifyLicenseCode()" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition">
+                            Attiva
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pulsante Test Sviluppatore per verificare subito lo sblocco -->
+                <div class="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-center">
+                    <p class="text-[11px] text-amber-800 mb-2">
+                        <strong>Modalità Test / Anteprima Proprietario:</strong> vuoi testare subito lo sblocco completo e scaricare il file Excel reale?
+                    </p>
+                    <button onclick="unlockAppSuccess('TEST-DEMO-UNLOCKED')" class="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                        <span>Simula Pagamento Riuscito e Sblocca Subito</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // CONFIGURAZIONE COMMERCIALE (INSERISCI QUI IL TUO LINK LEMON SQUEEZY / STRIPE)
+        // =========================================================================
+        const CONFIG = {
+            FREE_PREVIEW_LIMIT: 3,
+            // Sostituisci questo URL con il tuo checkout link reale di Lemon Squeezy o Stripe
+            // Suggerimento: su Lemon Squeezy imposta il redirect post-acquisto a: https://tuodominio.it/?unlocked=1
+            CHECKOUT_URL: "https://buy.stripe.com/5kQ4gBcrsfaH4MFbbx5os00", 
+            VALID_TEST_CODES: ["FATTURA-PRO-2026", "PRO2026", "VIP"]
+        };
+
+        // =========================================================================
+        // STATO GLOBALE DELL'APPLICAZIONE
+        // =========================================================================
+        let appState = {
+            invoices: [],
+            isUnlocked: false,
+            parseErrors: 0
+        };
+
+        // =========================================================================
+        // INIZIALIZZAZIONE & CONTROLLO SBLOCCO DA URL / LOCALSTORAGE
+        // =========================================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            setupDragAndDrop();
+
+            // Controlla se l'utente torna da un pagamento Lemon Squeezy (?unlocked=1) o ha già sbloccato
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('unlocked') === '1' || localStorage.getItem('fatturaexcel_unlocked') === 'true') {
+                appState.isUnlocked = true;
+                updateLicenseUI();
+            }
+        });
+
+        // =========================================================================
+        // GESTIONE DRAG & DROP E CARICAMENTO FILE
+        // =========================================================================
+        function setupDragAndDrop() {
+            const dropzone = document.getElementById('dropzone');
+
+            ['dragenter', 'dragover'].forEach(evt => {
+                dropzone.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('dropzone-active');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(evt => {
+                dropzone.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('dropzone-active');
+                });
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                const files = Array.from(e.dataTransfer.files || []);
+                if (files.length > 0) {
+                    processFiles(files);
+                }
+            });
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files || []);
+            if (files.length > 0) {
+                processFiles(files);
+            }
+            event.target.value = '';
+        }
+
+        async function processFiles(files) {
+            let addedCount = 0;
+            let errorCount = 0;
+
+            for (const file of files) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const parsedList = parseFatturaBuffer(arrayBuffer, file.name);
+                    if (parsedList && parsedList.length > 0) {
+                        appState.invoices.push(...parsedList);
+                        addedCount += parsedList.length;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (err) {
+                    console.error("Errore parsing file:", file.name, err);
+                    errorCount++;
+                }
+            }
+
+            if (addedCount > 0) {
+                refreshWorkspace();
+                showToast(`Elaborate ${addedCount} fatture con successo!`, 'success');
+            }
+            if (errorCount > 0) {
+                showToast(`${errorCount} file non riconosciuti come FatturaPA valida.`, 'warning');
+            }
+        }
+
+        // =========================================================================
+        // PARSER PROFESSIONALE FATTURAPA (.XML E BUSTA FIRMATA .XML.P7M)
+        // =========================================================================
+        function parseFatturaBuffer(arrayBuffer, fileName) {
+            const bytes = new Uint8Array(arrayBuffer);
+            const isP7M = fileName.toLowerCase().endsWith('.p7m');
+
+            // Decodifica inizialmente come latin1/iso-8859-1 per preservare gli offset byte-a-byte
+            // e individua l'inizio e la fine del payload XML dentro la busta ASN.1 PKCS#7
+            let rawBinaryStr = "";
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                rawBinaryStr += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+
+            let xmlStart = rawBinaryStr.indexOf('<?xml');
+            if (xmlStart === -1) {
+                // Alcune fatture non hanno <?xml ma iniziano direttamente con <FatturaElettronica o <p:FatturaElettronica
+                const rootMatch = rawBinaryStr.match(/<([a-zA-Z0-9_]+:)?FatturaElettronica\b/);
+                if (rootMatch) {
+                    xmlStart = rootMatch.index;
+                }
+            }
+
+            if (xmlStart === -1) {
+                throw new Error("Tag root FatturaElettronica non trovato.");
+            }
+
+            // Trova la chiusura del tag root
+            const endTagMatch = rawBinaryStr.match(/<\/([a-zA-Z0-9_]+:)?FatturaElettronica\s*>/);
+            const xmlEnd = endTagMatch ? (endTagMatch.index + endTagMatch[0].length) : rawBinaryStr.length;
+
+            // Estrai la fetta di byte esatta del payload XML e decodifica in UTF-8
+            const xmlSlice = bytes.subarray(xmlStart, xmlEnd);
+            let xmlText = new TextDecoder('utf-8', { fatal: false }).decode(xmlSlice);
+
+            // Se il file .p7m usa OCTET STRING spezzettati (constructed octet string ASN.1),
+            // occasionalmente compaiono byte di controllo non stampabili tra i tag: li ripuliamo in sicurezza.
+            if (isP7M) {
+                xmlText = cleanP7MArtifacts(xmlText);
+            }
+
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+            if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+                // Secondo tentativo con ISO-8859-1 se UTF-8 aveva caratteri accentati legacy
+                const isoText = cleanP7MArtifacts(new TextDecoder('iso-8859-1').decode(xmlSlice));
+                const retryDoc = parser.parseFromString(isoText, "text/xml");
+                if (retryDoc.getElementsByTagName("parsererror").length > 0) {
+                    throw new Error("XML malformato dopo estrazione P7M.");
+                }
+                return extractInvoicesFromXmlDoc(retryDoc, fileName, isP7M);
+            }
+
+            return extractInvoicesFromXmlDoc(xmlDoc, fileName, isP7M);
+        }
+
+        function cleanP7MArtifacts(str) {
+            // Rimuove eventuali byte nulli o caratteri di controllo ASN.1 inseriti da chunking PKCS#7
+            return str
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+                .replace(/\uFFFD/g, '');
+        }
+
+        // Helper namespace-agnostic per leggere tag FatturaPA (es. sia <Data> che <ns2:Data>)
+        function getTagText(parent, tagName) {
+            if (!parent) return "";
+            const els = parent.getElementsByTagName("*");
+            for (let i = 0; i < els.length; i++) {
+                if (els[i].localName === tagName) {
+                    return (els[i].textContent || "").trim();
+                }
+            }
+            return "";
+        }
+
+        function getFirstElement(parent, tagName) {
+            if (!parent) return null;
+            const els = parent.getElementsByTagName("*");
+            for (let i = 0; i < els.length; i++) {
+                if (els[i].localName === tagName) {
+                    return els[i];
+                }
+            }
+            return null;
+        }
+
+        function getAllElements(parent, tagName) {
+            if (!parent) return [];
+            const result = [];
+            const els = parent.getElementsByTagName("*");
+            for (let i = 0; i < els.length; i++) {
+                if (els[i].localName === tagName) {
+                    result.push(els[i]);
+                }
+            }
+            return result;
+        }
+
+        function extractInvoicesFromXmlDoc(xmlDoc, fileName, isP7M) {
+            const header = getFirstElement(xmlDoc, "FatturaElettronicaHeader");
+            const bodies = getAllElements(xmlDoc, "FatturaElettronicaBody");
+
+            // Dati Cedente / Prestatore (Fornitore)
+            const cedente = getFirstElement(header, "CedentePrestatore");
+            const cedenteAnag = getFirstElement(cedente, "Anagrafica");
+            let fornitore = getTagText(cedenteAnag, "Denominazione");
+            if (!fornitore) {
+                const nome = getTagText(cedenteAnag, "Nome");
+                const cognome = getTagText(cedenteAnag, "Cognome");
+                fornitore = `${nome} ${cognome}`.trim() || "Fornitore Sconosciuto";
+            }
+
+            const cedenteIvaNode = getFirstElement(cedente, "IdFiscaleIVA");
+            const idPaese = getTagText(cedenteIvaNode, "IdPaese");
+            const idCodice = getTagText(cedenteIvaNode, "IdCodice");
+            const pivaFornitore = idCodice ? `${idPaese}${idCodice}` : "";
+            const cfFornitore = getTagText(cedente, "CodiceFiscale");
+
+            // Dati Cessionario / Committente (Cliente)
+            const cessionario = getFirstElement(header, "CessionarioCommittente");
+            const cessionarioAnag = getFirstElement(cessionario, "Anagrafica");
+            let cliente = getTagText(cessionarioAnag, "Denominazione");
+            if (!cliente) {
+                const nome = getTagText(cessionarioAnag, "Nome");
+                const cognome = getTagText(cessionarioAnag, "Cognome");
+                cliente = `${nome} ${cognome}`.trim();
+            }
+            const cessIvaNode = getFirstElement(cessionario, "IdFiscaleIVA");
+            const pivaCliente = getTagText(cessIvaNode, "IdCodice") 
+                ? `${getTagText(cessIvaNode, "IdPaese")}${getTagText(cessIvaNode, "IdCodice")}`
+                : getTagText(cessionario, "CodiceFiscale");
+
+            const extracted = [];
+
+            bodies.forEach((body, idx) => {
+                const datiGenDoc = getFirstElement(body, "DatiGeneraliDocumento");
+                const tipoDocCode = getTagText(datiGenDoc, "TipoDocumento") || "TD01";
+                const dataDoc = getTagText(datiGenDoc, "Data");
+                const numeroDoc = getTagText(datiGenDoc, "Numero") || `DOC-${idx + 1}`;
+                const causale = getTagText(datiGenDoc, "Causale");
+
+                // Note di Credito (TD04, TD08) hanno segno contabile negativo
+                const isCreditNote = (tipoDocCode === "TD04" || tipoDocCode === "TD08");
+                const sign = isCreditNote ? -1 : 1;
+
+                // Riepiloghi IVA
+                const riepiloghi = getAllElements(body, "DatiRiepilogo");
+                let imponibileSum = 0;
+                let ivaSum = 0;
+                const aliquoteSet = new Set();
+
+                riepiloghi.forEach(r => {
+                    const imp = parseFloat(getTagText(r, "ImponibileImporto")) || 0;
+                    const tax = parseFloat(getTagText(r, "Imposta")) || 0;
+                    const aliq = parseFloat(getTagText(r, "AliquotaIVA"));
+                    const natura = getTagText(r, "Natura");
+
+                    imponibileSum += imp;
+                    ivaSum += tax;
+
+                    if (!isNaN(aliq) && aliq > 0) {
+                        aliquoteSet.add(`${aliq}%`);
+                    } else if (natura) {
+                        aliquoteSet.add(`0% (${natura})`);
+                    } else if (aliq === 0) {
+                        aliquoteSet.add("0%");
+                    }
+                });
+
+                const rawTotalDoc = parseFloat(getTagText(datiGenDoc, "ImportoTotaleDocumento"));
+                const imponibileFinal = round2(imponibileSum * sign);
+                const ivaFinal = round2(ivaSum * sign);
+                const totaleFinal = !isNaN(rawTotalDoc)
+                    ? round2(Math.abs(rawTotalDoc) * sign)
+                    : round2(imponibileFinal + ivaFinal);
+
+                // Pagamento
+                const dettaglioPag = getFirstElement(body, "DettaglioPagamento");
+                const modPagCode = getTagText(dettaglioPag, "ModalitaPagamento");
+                const scadenzaPag = getTagText(dettaglioPag, "DataScadenzaPagamento");
+
+                // Prima riga descrittiva
+                const primaLinea = getFirstElement(body, "DettaglioLinee");
+                const primaDescrizione = getTagText(primaLinea, "Descrizione") || causale || "Fornitura beni / servizi";
+
+                extracted.push({
+                    id: `${fileName}-${idx}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                    fileName,
+                    isP7M,
+                    data: dataDoc,
+                    numero: numeroDoc,
+                    tipoCode: tipoDocCode,
+                    tipoLabel: mapTipoDocumento(tipoDocCode),
+                    isCreditNote,
+                    fornitore,
+                    pivaFornitore: pivaFornitore || cfFornitore || "N/D",
+                    cfFornitore: cfFornitore || pivaFornitore || "N/D",
+                    cliente: cliente || "N/D",
+                    pivaCliente: pivaCliente || "N/D",
+                    imponibile: imponibileFinal,
+                    iva: ivaFinal,
+                    aliquote: Array.from(aliquoteSet).join(", ") || "N/D",
+                    totale: totaleFinal,
+                    modalitaPagamento: mapModalitaPagamento(modPagCode),
+                    scadenza: scadenzaPag || "-",
+                    descrizione: primaDescrizione
+                });
+            });
+
+            return extracted;
+        }
+
+        function mapTipoDocumento(code) {
+            const map = {
+                "TD01": "Fattura",
+                "TD02": "Acconto/Anticipo",
+                "TD04": "Nota di Credito",
+                "TD05": "Nota di Debito",
+                "TD06": "Parcella",
+                "TD16": "Integrazione Reverse Charge",
+                "TD17": "Integrazione Servizi Estero",
+                "TD18": "Integrazione Acquisti UE",
+                "TD24": "Fattura Differita",
+                "TD25": "Fattura Differita Triangolare"
+            };
+            return map[code] || code;
+        }
+
+        function mapModalitaPagamento(code) {
+            if (!code) return "-";
+            const map = {
+                "MP01": "Contanti",
+                "MP02": "Assegno",
+                "MP05": "Bonifico",
+                "MP08": "Carta di Pagamento",
+                "MP09": "RID",
+                "MP12": "RIBA",
+                "MP19": "SEPA Direct Debit",
+                "MP23": "PagoPA"
+            };
+            return map[code] ? `${code} - ${map[code]}` : code;
+        }
+
+        function round2(num) {
+            return Math.round((num + Number.EPSILON) * 100) / 100;
+        }
+
+        // =========================================================================
+        // RENDERING WORKSPACE, KPI E TABELLA CON LOGICA PAYWALL
+        // =========================================================================
+        function refreshWorkspace() {
+            const section = document.getElementById('results-section');
+            if (appState.invoices.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+
+            // Calcolo KPI totali su tutte le fatture
+            let totImp = 0;
+            let totIva = 0;
+            let totDoc = 0;
+            let creditNotesCount = 0;
+            let p7mCount = 0;
+
+            appState.invoices.forEach(inv => {
+                totImp += inv.imponibile;
+                totIva += inv.iva;
+                totDoc += inv.totale;
+                if (inv.isCreditNote) creditNotesCount++;
+                if (inv.isP7M) p7mCount++;
+            });
+
+            const totalCount = appState.invoices.length;
+            document.getElementById('count-total-title').textContent = totalCount;
+            document.getElementById('kpi-count').textContent = totalCount;
+            document.getElementById('kpi-types-breakdown').textContent = 
+                `${totalCount - creditNotesCount} fatture${creditNotesCount > 0 ? `, ${creditNotesCount} NC` : ''}`;
+            document.getElementById('kpi-imponibile').textContent = formatEuro(totImp);
+            document.getElementById('kpi-iva').textContent = formatEuro(totIva);
+            document.getElementById('kpi-totale').textContent = formatEuro(totDoc);
+
+            document.getElementById('parse-summary-subtitle').textContent = 
+                `Elaborati ${totalCount} documenti (${p7mCount} firmati .p7m) interamente nella memoria del browser.`;
+
+            updatePaywallVisibility();
+            renderTable();
+            lucide.createIcons();
+
+            // Scorri dolcemente ai risultati al primo caricamento
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function updatePaywallVisibility() {
+            const totalCount = appState.invoices.length;
+            const needsPaywall = !appState.isUnlocked && totalCount > CONFIG.FREE_PREVIEW_LIMIT;
+
+            const banner = document.getElementById('paywall-banner');
+            const footerCta = document.getElementById('table-footer-cta');
+            const statusPill = document.getElementById('license-status-pill');
+            const exportBtnLabel = document.getElementById('btn-export-xlsx-label');
+
+            if (needsPaywall) {
+                banner.classList.remove('hidden');
+                footerCta.classList.remove('hidden');
+                document.getElementById('banner-total-count').textContent = totalCount;
+                document.getElementById('banner-total-count-2').textContent = totalCount;
+                document.getElementById('footer-hidden-count').textContent = totalCount;
+
+                statusPill.textContent = `Anteprima Gratuita (${CONFIG.FREE_PREVIEW_LIMIT} di ${totalCount})`;
+                statusPill.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200";
+                exportBtnLabel.textContent = `Sblocca ed Esporta (${totalCount}) — €7,90`;
+            } else {
+                banner.classList.add('hidden');
+                footerCta.classList.add('hidden');
+
+                if (appState.isUnlocked) {
+                    statusPill.textContent = "Licenza Pro Attiva • Tutto Sbloccato";
+                    statusPill.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200";
+                } else {
+                    statusPill.textContent = "Gratis (fino a 3 fatture)";
+                    statusPill.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200";
+                }
+                exportBtnLabel.textContent = `Scarica Excel (.xlsx) Completo`;
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('invoices-tbody');
+            const search = (document.getElementById('search-input').value || "").toLowerCase().trim();
+            const filterType = document.getElementById('filter-type').value;
+            const sortOrder = document.getElementById('sort-order').value;
+
+            let filtered = appState.invoices.filter(inv => {
+                if (filterType === "TD01" && inv.isCreditNote) return false;
+                if (filterType === "TD04" && !inv.isCreditNote) return false;
+                if (filterType === "P7M" && !inv.isP7M) return false;
+
+                if (search) {
+                    const hay = `${inv.fornitore} ${inv.pivaFornitore} ${inv.numero} ${inv.descrizione} ${inv.fileName}`.toLowerCase();
+                    if (!hay.includes(search)) return false;
+                }
+                return true;
+            });
+
+            // Ordinamento
+            filtered.sort((a, b) => {
+                if (sortOrder === "date-desc") return (b.data || "").localeCompare(a.data || "");
+                if (sortOrder === "date-asc") return (a.data || "").localeCompare(b.data || "");
+                if (sortOrder === "amount-desc") return b.totale - a.totale;
+                if (sortOrder === "supplier-asc") return a.fornitore.localeCompare(b.fornitore);
+                return 0;
+            });
+
+            tbody.innerHTML = "";
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="11" class="py-10 text-center text-slate-500 text-sm">
+                            Nessuna fattura corrisponde ai filtri selezionati.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filtered.forEach((inv, index) => {
+                const isLockedRow = !appState.isUnlocked && index >= CONFIG.FREE_PREVIEW_LIMIT;
+                const blurClass = isLockedRow ? "paywall-blur" : "";
+
+                const tr = document.createElement('tr');
+                tr.className = `hover:bg-slate-50/90 transition ${inv.isCreditNote ? 'bg-rose-50/30' : ''}`;
+
+                const typeBadgeClass = inv.isCreditNote
+                    ? "bg-rose-100 text-rose-800 border-rose-200"
+                    : "bg-slate-100 text-slate-700 border-slate-200";
+
+                const p7mBadge = inv.isP7M
+                    ? `<span class="ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">.p7m</span>`
+                    : "";
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono text-xs text-slate-400">${index + 1}</td>
+                    <td class="py-3 px-4 font-mono text-xs text-slate-700 whitespace-nowrap">${formatDateIT(inv.data)}</td>
+                    <td class="py-3 px-4 whitespace-nowrap">
+                        <div class="font-mono text-xs font-semibold text-slate-900">${escapeHtml(inv.numero)}${p7mBadge}</div>
+                        <span class="inline-block mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${typeBadgeClass}">
+                            ${escapeHtml(inv.tipoCode)} • ${escapeHtml(inv.tipoLabel)}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 font-semibold text-slate-900 max-w-[210px] truncate ${blurClass}" title="${escapeHtml(inv.fornitore)}">
+                        ${escapeHtml(inv.fornitore)}
+                    </td>
+                    <td class="py-3 px-4 font-mono text-xs text-slate-600 whitespace-nowrap ${blurClass}">
+                        ${escapeHtml(inv.pivaFornitore)}
+                    </td>
+                    <td class="py-3 px-4 font-mono text-xs text-right whitespace-nowrap ${inv.isCreditNote ? 'text-rose-700' : 'text-slate-700'} ${blurClass}">
+                        ${formatEuro(inv.imponibile)}
+                    </td>
+                    <td class="py-3 px-4 font-mono text-xs text-right whitespace-nowrap ${inv.isCreditNote ? 'text-rose-700' : 'text-slate-700'} ${blurClass}">
+                        ${formatEuro(inv.iva)}
+                    </td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap ${blurClass}">
+                        <span class="text-[11px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
+                            ${escapeHtml(inv.aliquote)}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 font-mono text-xs font-bold text-right whitespace-nowrap ${inv.isCreditNote ? 'text-rose-700' : 'text-emerald-700'} ${blurClass}">
+                        ${formatEuro(inv.totale)}
+                    </td>
+                    <td class="py-3 px-4 text-xs text-slate-600 whitespace-nowrap ${blurClass}">
+                        <div>${escapeHtml(inv.modalitaPagamento)}</div>
+                        ${inv.scadenza !== "-" ? `<div class="text-[10px] text-slate-400 font-mono">Scad: ${formatDateIT(inv.scadenza)}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4 text-xs text-slate-500 max-w-[200px] truncate ${blurClass}" title="${escapeHtml(inv.descrizione)}">
+                        ${escapeHtml(inv.descrizione)}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function clearInvoices() {
+            appState.invoices = [];
+            document.getElementById('results-section').classList.add('hidden');
+            showToast('Elenco fatture svuotato.', 'info');
+        }
+
+        // =========================================================================
+        // ESPORTAZIONE EXCEL (.XLSX MULTI-FOGLIO) E CSV
+        // =========================================================================
+        function handleExportRequest(format) {
+            if (appState.invoices.length === 0) {
+                showToast('Carica prima almeno una fattura XML o P7M.', 'warning');
+                return;
+            }
+
+            // Se ci sono più di 3 fatture e l'utente non ha ancora sbloccato, apri il checkout
+            if (!appState.isUnlocked && appState.invoices.length > CONFIG.FREE_PREVIEW_LIMIT) {
+                openCheckoutModal();
+                return;
+            }
+
+            if (format === 'xlsx') {
+                downloadRealExcel();
+            } else {
+                downloadCSV();
+            }
+        }
+
+        function downloadRealExcel() {
+            try {
+                // FOGLIO 1: Elenco Completo Fatture
+                const rowsSheet1 = appState.invoices.map((inv, idx) => ({
+                    "N.": idx + 1,
+                    "Data Documento": inv.data,
+                    "Numero Fattura": inv.numero,
+                    "Codice Tipo": inv.tipoCode,
+                    "Tipo Documento": inv.tipoLabel,
+                    "Cedente / Fornitore": inv.fornitore,
+                    "Partita IVA Fornitore": inv.pivaFornitore,
+                    "Codice Fiscale Fornitore": inv.cfFornitore,
+                    "Cliente / Cessionario": inv.cliente,
+                    "P.IVA Cliente": inv.pivaCliente,
+                    "Imponibile (€)": inv.imponibile,
+                    "IVA (€)": inv.iva,
+                    "Aliquote IVA": inv.aliquote,
+                    "Totale Documento (€)": inv.totale,
+                    "Modalità Pagamento": inv.modalitaPagamento,
+                    "Scadenza Pagamento": inv.scadenza,
+                    "Descrizione Principale": inv.descrizione,
+                    "Formato Origine": inv.isP7M ? "Firmato (.p7m)" : "XML Standard",
+                    "Nome File": inv.fileName
+                }));
+
+                // Riga Totali in fondo al Foglio 1
+                const totImp = round2(appState.invoices.reduce((acc, i) => acc + i.imponibile, 0));
+                const totIva = round2(appState.invoices.reduce((acc, i) => acc + i.iva, 0));
+                const totDoc = round2(appState.invoices.reduce((acc, i) => acc + i.totale, 0));
+
+                rowsSheet1.push({
+                    "N.": "",
+                    "Data Documento": "",
+                    "Numero Fattura": "",
+                    "Codice Tipo": "",
+                    "Tipo Documento": "",
+                    "Cedente / Fornitore": "TOTALE COMPLESSIVO",
+                    "Partita IVA Fornitore": "",
+                    "Codice Fiscale Fornitore": "",
+                    "Cliente / Cessionario": "",
+                    "P.IVA Cliente": "",
+                    "Imponibile (€)": totImp,
+                    "IVA (€)": totIva,
+                    "Aliquote IVA": "",
+                    "Totale Documento (€)": totDoc,
+                    "Modalità Pagamento": "",
+                    "Scadenza Pagamento": "",
+                    "Descrizione Principale": "",
+                    "Formato Origine": "",
+                    "Nome File": ""
+                });
+
+                // FOGLIO 2: Riepilogo per Fornitore (utilissimo per il commercialista)
+                const supplierMap = {};
+                appState.invoices.forEach(inv => {
+                    const key = `${inv.fornitore} (${inv.pivaFornitore})`;
+                    if (!supplierMap[key]) {
+                        supplierMap[key] = {
+                            "Fornitore": inv.fornitore,
+                            "Partita IVA": inv.pivaFornitore,
+                            "N. Documenti": 0,
+                            "Totale Imponibile (€)": 0,
+                            "Totale IVA (€)": 0,
+                            "Totale Lordo (€)": 0
+                        };
+                    }
+                    supplierMap[key]["N. Documenti"] += 1;
+                    supplierMap[key]["Totale Imponibile (€)"] = round2(supplierMap[key]["Totale Imponibile (€)"] + inv.imponibile);
+                    supplierMap[key]["Totale IVA (€)"] = round2(supplierMap[key]["Totale IVA (€)"] + inv.iva);
+                    supplierMap[key]["Totale Lordo (€)"] = round2(supplierMap[key]["Totale Lordo (€)"] + inv.totale);
+                });
+                const rowsSheet2 = Object.values(supplierMap).sort((a, b) => b["Totale Lordo (€)"] - a["Totale Lordo (€)"]);
+
+                // Costruzione Workbook SheetJS
+                const wb = XLSX.utils.book_new();
+                const ws1 = XLSX.utils.json_to_sheet(rowsSheet1);
+                const ws2 = XLSX.utils.json_to_sheet(rowsSheet2);
+
+                // Larghezza colonne ottimizzata
+                ws1['!cols'] = [
+                    { wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 11 }, { wch: 18 },
+                    { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 24 }, { wch: 16 },
+                    { wch: 15 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 20 },
+                    { wch: 14 }, { wch: 34 }, { wch: 15 }, { wch: 28 }
+                ];
+                ws2['!cols'] = [
+                    { wch: 32 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 18 }
+                ];
+
+                XLSX.utils.book_append_sheet(wb, ws1, "Elenco Fatture");
+                XLSX.utils.book_append_sheet(wb, ws2, "Riepilogo per Fornitore");
+
+                const today = new Date().toISOString().slice(0, 10);
+                XLSX.writeFile(wb, `Fatture_Elettroniche_${today}.xlsx`);
+                showToast('File Excel (.xlsx) scaricato con successo!', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Errore durante la generazione del file Excel.', 'warning');
+            }
+        }
+
+        function downloadCSV() {
+            const headers = ["Data", "Numero", "Tipo", "Fornitore", "PIVA_Fornitore", "Imponibile", "IVA", "Aliquote", "Totale", "Pagamento", "Scadenza", "Descrizione", "File"];
+            const lines = [headers.join(";")];
+
+            appState.invoices.forEach(inv => {
+                const row = [
+                    inv.data,
+                    `"${inv.numero.replace(/"/g, '""')}"`,
+                    inv.tipoCode,
+                    `"${inv.fornitore.replace(/"/g, '""')}"`,
+                    inv.pivaFornitore,
+                    inv.imponibile.toFixed(2).replace('.', ','),
+                    inv.iva.toFixed(2).replace('.', ','),
+                    `"${inv.aliquote}"`,
+                    inv.totale.toFixed(2).replace('.', ','),
+                    `"${inv.modalitaPagamento}"`,
+                    inv.scadenza,
+                    `"${inv.descrizione.replace(/"/g, '""')}"`,
+                    `"${inv.fileName}"`
+                ];
+                lines.push(row.join(";"));
+            });
+
+            const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Fatture_Elettroniche_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('File CSV (separatore ;) scaricato!', 'success');
+        }
+
+        // =========================================================================
+        // MODALE CHECKOUT & SBLOCCO LICENZA
+        // =========================================================================
+        function openCheckoutModal() {
+            document.getElementById('checkout-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeCheckoutModal() {
+            document.getElementById('checkout-modal').classList.add('hidden');
+        }
+
+        function handleRealCheckoutClick(e) {
+            if (CONFIG.CHECKOUT_URL === "https://lemonsqueezy.com") {
+                e.preventDefault();
+                showToast('Collega il tuo link Lemon Squeezy o Stripe in CONFIG.CHECKOUT_URL per incassare!', 'info');
+            }
+        }
+
+        function verifyLicenseCode() {
+            const code = (document.getElementById('license-code-input').value || "").trim().toUpperCase();
+            if (CONFIG.VALID_TEST_CODES.includes(code) || code.startsWith("LS-")) {
+                unlockAppSuccess(code);
+            } else {
+                showToast('Codice licenza non valido. Usa il pulsante Test qui sotto per provare!', 'warning');
+            }
+        }
+
+        function unlockAppSuccess(sourceLabel) {
+            appState.isUnlocked = true;
+            localStorage.setItem('fatturaexcel_unlocked', 'true');
+            closeCheckoutModal();
+            updateLicenseUI();
+            updatePaywallVisibility();
+            renderTable();
+            showToast('Esportazione illimitata sbloccata! Ora puoi scaricare l’Excel.', 'success');
+        }
+
+        function updateLicenseUI() {
+            const btn = document.getElementById('header-unlock-btn');
+            if (appState.isUnlocked && btn) {
+                btn.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i><span>Licenza Pro Attiva</span>`;
+            }
+        }
+
+        // =========================================================================
+        // GENERATORE DI 6 FATTURE DEMO REALISTICHE (INCLUSO .P7M E TD04)
+        // =========================================================================
+        function loadDemoInvoices() {
+            const demoXmlSamples = [
+                {
+                    name: "IT01234567890_00412.xml",
+                    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<p:FatturaElettronica versione="FPR12" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+  <FatturaElettronicaHeader>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>03489120541</IdCodice></IdFiscaleIVA>
+        <CodiceFiscale>03489120541</CodiceFiscale>
+        <Anagrafica><Denominazione>UMBRIA CLOUD &amp; SISTEMI SRL</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CedentePrestatore>
+    <CessionarioCommittente>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>09876540961</IdCodice></IdFiscaleIVA>
+        <Anagrafica><Denominazione>STUDIO ASSOCIATO ROSSI &amp; PARTNERS</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CessionarioCommittente>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD01</TipoDocumento>
+        <Data>2026-11-04</Data>
+        <Numero>FT-2026/412</Numero>
+        <ImportoTotaleDocumento>1464.00</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee><Descrizione>Canone infrastruttura cloud e backup gestito Q4</Descrizione></DettaglioLinee>
+      <DatiRiepilogo><AliquotaIVA>22.00</AliquotaIVA><ImponibileImporto>1200.00</ImponibileImporto><Imposta>264.00</Imposta></DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <DettaglioPagamento><ModalitaPagamento>MP05</ModalitaPagamento><DataScadenzaPagamento>2026-12-04</DataScadenzaPagamento></DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</p:FatturaElettronica>`
+                },
+                {
+                    name: "IT08821930152_9011.xml.p7m",
+                    // Simuliamo un file .p7m con intestazione binaria ASN.1 prima del tag <?xml e firma PKCS#7 in coda
+                    prefixBytes: [0x30, 0x82, 0x09, 0x1A, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02],
+                    suffixBytes: [0x31, 0x82, 0x02, 0x10, 0x30, 0x82, 0x02, 0x0C, 0x02, 0x01, 0x01],
+                    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<FatturaElettronica versione="FPR12">
+  <FatturaElettronicaHeader>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>08821930152</IdCodice></IdFiscaleIVA>
+        <Anagrafica><Denominazione>ENERGIA VERDE ITALIA SPA</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CedentePrestatore>
+    <CessionarioCommittente>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>09876540961</IdCodice></IdFiscaleIVA>
+        <Anagrafica><Denominazione>STUDIO ASSOCIATO ROSSI &amp; PARTNERS</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CessionarioCommittente>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD24</TipoDocumento>
+        <Data>2026-10-31</Data>
+        <Numero>2026-EL-99812</Numero>
+        <ImportoTotaleDocumento>536.80</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee><Descrizione>Fornitura energia elettrica sede operativa - Ottobre</Descrizione></DettaglioLinee>
+      <DatiRiepilogo><AliquotaIVA>22.00</AliquotaIVA><ImponibileImporto>440.00</ImponibileImporto><Imposta>96.80</Imposta></DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <DettaglioPagamento><ModalitaPagamento>MP19</ModalitaPagamento><DataScadenzaPagamento>2026-11-20</DataScadenzaPagamento></DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</FatturaElettronica>`
+                },
+                {
+                    name: "IT02114580549_0088.xml",
+                    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<FatturaElettronica versione="FPR12">
+  <FatturaElettronicaHeader>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>02114580549</IdCodice></IdFiscaleIVA>
+        <Anagrafica><Denominazione>FORNITURE UFFICIO PERUGIA SNC</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CedentePrestatore>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD01</TipoDocumento>
+        <Data>2026-10-25</Data>
+        <Numero>88/A</Numero>
+        <ImportoTotaleDocumento>353.80</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee><Descrizione>Toner laser alta capacità e risme carta A4</Descrizione></DettaglioLinee>
+      <DatiRiepilogo><AliquotaIVA>22.00</AliquotaIVA><ImponibileImporto>290.00</ImponibileImporto><Imposta>63.80</Imposta></DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <DettaglioPagamento><ModalitaPagamento>MP12</ModalitaPagamento><DataScadenzaPagamento>2026-11-30</DataScadenzaPagamento></DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</FatturaElettronica>`
+                },
+                {
+                    name: "IT02114580549_NC14.xml",
+                    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<FatturaElettronica versione="FPR12">
+  <FatturaElettronicaHeader>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>02114580549</IdCodice></IdFiscaleIVA>
+        <Anagrafica><Denominazione>FORNITURE UFFICIO PERUGIA SNC</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CedentePrestatore>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD04</TipoDocumento>
+        <Data>2026-10-28</Data>
+        <Numero>NC-14/2026</Numero>
+        <ImportoTotaleDocumento>73.20</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee><Descrizione>Storno reso toner errato su fattura 88/A</Descrizione></DettaglioLinee>
+      <DatiRiepilogo><AliquotaIVA>22.00</AliquotaIVA><ImponibileImporto>60.00</ImponibileImporto><Imposta>13.20</Imposta></DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <DettaglioPagamento><ModalitaPagamento>MP05</ModalitaPagamento></DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</FatturaElettronica>`
+                },
+                {
+                    name: "IT04910280488_1204.xml.p7m",
+                    prefixBytes: [0x30, 0x82, 0x05, 0x01],
+                    suffixBytes: [0x31, 0x82, 0x01, 0x02],
+                    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<FatturaElettronica versione="FPR12">
+  <FatturaElettronicaHeader>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>04910280488</IdCodice></IdFiscaleIVA>
+        <Anagrafica><Denominazione>CONSULENZA LEGALE &amp; FISCALE BIANCHI SRL</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CedentePrestatore>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD06</TipoDocumento>
+        <Data>2026-10-15</Data>
+        <Numero>PAR-1204</Numero>
+        <ImportoTotaleDocumento>1830.00</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee><Descrizione>Consulenza contrattuale e adeguamento privacy GDPR</Descrizione></DettaglioLinee>
+      <DatiRiepilogo><AliquotaIVA>22.00</AliquotaIVA><ImponibileImporto>1500.00</ImponibileImporto><Imposta>330.00</Imposta></DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <DettaglioPagamento><ModalitaPagamento>MP05</ModalitaPagamento><DataScadenzaPagamento>2026-11-15</DataScadenzaPagamento></DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</FatturaElettronica>`
+                },
+                {
+                    name: "IT01598230547_331.xml",
+                    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<FatturaElettronica versione="FPR12">
+  <FatturaElettronicaHeader>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>01598230547</IdCodice></IdFiscaleIVA>
+        <Anagrafica><Denominazione>TIPOGRAFIA &amp; GRAFICA ASSISI SRL</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CedentePrestatore>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD01</TipoDocumento>
+        <Data>2026-10-08</Data>
+        <Numero>331/2026</Numero>
+        <ImportoTotaleDocumento>462.00</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee><Descrizione>Stampa brochure istituzionali e biglietti da visita</Descrizione></DettaglioLinee>
+      <DatiRiepilogo><AliquotaIVA>10.00</AliquotaIVA><ImponibileImporto>420.00</ImponibileImporto><Imposta>42.00</Imposta></DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <DettaglioPagamento><ModalitaPagamento>MP08</ModalitaPagamento><DataScadenzaPagamento>2026-10-08</DataScadenzaPagamento></DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</FatturaElettronica>`
+                }
+            ];
+
+            const encoder = new TextEncoder();
+            let loaded = 0;
+
+            demoXmlSamples.forEach(sample => {
+                const xmlBytes = encoder.encode(sample.xml);
+                const prefix = new Uint8Array(sample.prefixBytes || []);
+                const suffix = new Uint8Array(sample.suffixBytes || []);
+                const combined = new Uint8Array(prefix.length + xmlBytes.length + suffix.length);
+                combined.set(prefix, 0);
+                combined.set(xmlBytes, prefix.length);
+                combined.set(suffix, prefix.length + xmlBytes.length);
+
+                const parsed = parseFatturaBuffer(combined.buffer, sample.name);
+                appState.invoices.push(...parsed);
+                loaded += parsed.length;
+            });
+
+            refreshWorkspace();
+            showToast(`Caricate ${loaded} fatture demo reali (inclusi file .p7m e Nota di Credito TD04)!`, 'success');
+        }
+
+        // =========================================================================
+        // FUNZIONI DI FORMATTAZIONE & NOTIFICHE TOAST
+        // =========================================================================
+        function formatEuro(amount) {
+            return new Intl.NumberFormat('it-IT', {
+                style: 'currency',
+                currency: 'EUR'
+            }).format(amount || 0);
+        }
+
+        function formatDateIT(isoDate) {
+            if (!isoDate || isoDate === "-") return "-";
+            const parts = isoDate.split("-");
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return isoDate;
+        }
+
+        function escapeHtml(str) {
+            return String(str || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const styles = {
+                success: 'bg-slate-900 border-emerald-500 text-emerald-300',
+                warning: 'bg-slate-900 border-amber-500 text-amber-300',
+                info: 'bg-slate-900 border-slate-700 text-slate-200'
+            };
+            const icons = {
+                success: 'check-circle-2',
+                warning: 'alert-triangle',
+                info: 'info'
+            };
+
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-2xl text-xs font-medium transition-all duration-300 ${styles[type] || styles.info}`;
+            toast.innerHTML = `
+                <i data-lucide="${icons[type] || 'info'}" class="w-4 h-4 shrink-0"></i>
+                <span>${escapeHtml(message)}</span>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3400);
+        }
+    </script>
+</body>
+</html>
