@@ -3,8 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FatturaExcel Pro — Converti Fatture Elettroniche XML e P7M in Excel (.xlsx)</title>
-    <meta name="description" content="Converti massivamente decine o centinaia di file FatturaPA (.xml e .xml.p7m) dell'Agenzia delle Entrate in un file Excel pulito per il commercialista. 100% nel browser, zero upload su server, GDPR Safe.">
+    <title>FatturaExcel Pro — Converti Fatture Elettroniche XML, P7M e Corrispettivi in Excel (.xlsx)</title>
+    <meta name="description" content="Converti massivamente decine o centinaia di file FatturaPA (.xml, .xml.p7m) e Corrispettivi Telematici (COR10) dell'Agenzia delle Entrate in un file Excel a 3 fogli. 100% nel browser, GDPR Safe.">
+    
+    <!-- OpenGraph per condivisione link -->
+    <meta property="og:title" content="FatturaExcel Pro — Convertitore XML, P7M e Corrispettivi RT in Excel">
+    <meta property="og:description" content="Trasforma decine o centinaia di fatture elettroniche e chiusure RT in un file Excel (.xlsx) pronto per il commercialista. 100% locale nel browser.">
+    <meta property="og:type" content="website">
+
+    <!-- Favicon SVG Inline -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23059669'/%3E%3Cpath d='M9 8h10l4 4v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M11 16h10M11 20h10M15 13v10' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -43,27 +51,18 @@
         }
     </script>
     <style>
-        /* Effetto sfocatura professionale per le righe oltre la soglia gratuita */
         .paywall-blur {
-            filter: blur(5.5px);
+            filter: blur(5px);
             user-select: none;
             pointer-events: none;
-            opacity: 0.72;
+            opacity: 0.65;
             transition: filter 0.35s ease, opacity 0.35s ease;
         }
-        .unlocked .paywall-blur {
-            filter: none;
-            user-select: auto;
-            pointer-events: auto;
-            opacity: 1;
-        }
-        /* Animazione morbida per la dropzone */
         .dropzone-active {
             border-color: #059669 !important;
             background-color: #ecfdf5 !important;
             transform: scale(1.01);
         }
-        /* Scrollbar pulita per tabella */
         ::-webkit-scrollbar {
             width: 7px;
             height: 7px;
@@ -87,7 +86,6 @@
     <!-- ===================================================================== -->
     <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-            <!-- Logo -->
             <a href="#" class="flex items-center gap-2.5 group">
                 <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-900/15 group-hover:scale-105 transition">
                     <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
@@ -95,12 +93,11 @@
                 <div>
                     <span class="font-extrabold text-lg tracking-tight text-slate-900">FatturaExcel <span class="text-emerald-600">Pro</span></span>
                     <span class="hidden sm:inline-block ml-2 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                        FatturaPA v1.2
+                        FatturaPA &amp; RT COR10
                     </span>
                 </div>
             </a>
 
-            <!-- Badge Sicurezza GDPR & Navigazione -->
             <div class="flex items-center gap-3 sm:gap-5">
                 <div class="hidden md:flex items-center gap-1.5 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-full">
                     <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
@@ -116,7 +113,7 @@
         </div>
     </header>
 
-    <!-- Toast Notifications Container (Sostituisce alert()) -->
+    <!-- Toast Notifications Container -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
 
     <!-- ===================================================================== -->
@@ -126,18 +123,17 @@
         <section class="relative overflow-hidden pt-8 pb-10 sm:pt-12 sm:pb-14 border-b border-slate-200/80 bg-gradient-to-b from-white to-slate-50">
             <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                 
-                <!-- Top Pill -->
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-5">
+                <div class="inline-flex flex-wrap items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-5">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Supporta file <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-700">.xml</code> e firmati <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-700">.xml.p7m</code>
+                    <span>Supporta Fatture <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-700">.xml</code> / <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-700">.xml.p7m</code> e Chiusure <code class="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-700">Corrispettivi RT</code></span>
                 </div>
 
                 <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.15] max-w-3xl mx-auto">
-                    Trasforma le tue <span class="text-emerald-600">Fatture Elettroniche</span> in un Excel perfetto in 5 secondi.
+                    Trasforma le tue <span class="text-emerald-600">Fatture Elettroniche</span> e Corrispettivi in Excel in 5 secondi.
                 </h1>
 
                 <p class="mt-4 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-                    Trascina decine o centinaia di file scaricati dal Cassetto Fiscale. Estraiamo automaticamente <strong>Fornitore, P.IVA, Imponibile, IVA, Note di Credito e Scadenze</strong> in un foglio Excel multi-scheda pronto per il commercialista.
+                    Trascina singoli file o <strong>intere cartelle</strong> scaricate dal Cassetto Fiscale. Estraiamo automaticamente <strong>Fornitore, P.IVA, Imponibile, IVA, Note di Credito e Chiusure RT</strong> in un Excel a 3 fogli pronto per il commercialista.
                 </p>
 
                 <!-- DROPZONE CARD -->
@@ -147,25 +143,31 @@
                         onclick="document.getElementById('file-input').click()"
                         class="relative group cursor-pointer bg-white border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-3xl p-8 sm:p-11 transition-all duration-200 shadow-lg shadow-slate-200/60"
                     >
-                        <input type="file" id="file-input" multiple accept=".xml,.p7m,text/xml,application/pkcs7-mime" class="hidden" onchange="handleFileSelect(event)">
+                        <input type="file" id="file-input" multiple accept=".xml,.p7m,text/xml,application/xml,application/pkcs7-mime" class="hidden" onchange="handleFileSelect(event)">
+                        <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden" onchange="handleFileSelect(event)">
                         
                         <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 border border-emerald-200/80 flex items-center justify-center text-emerald-600 transition-transform group-hover:scale-105 mb-4">
                             <i data-lucide="upload-cloud" class="w-8 h-8"></i>
                         </div>
 
                         <h2 class="text-lg sm:text-xl font-bold text-slate-900">
-                            Trascina qui i tuoi file <span class="text-emerald-600">.xml</span> o <span class="text-emerald-600">.xml.p7m</span>
+                            Trascina qui file <span class="text-emerald-600">.xml</span>, <span class="text-emerald-600">.xml.p7m</span> o intere cartelle
                         </h2>
-                        <p class="mt-1.5 text-sm text-slate-500">
-                            oppure <span class="text-emerald-600 font-semibold underline decoration-emerald-300 underline-offset-4">clicca per selezionare una cartella o più file</span> dal computer
+                        <p class="mt-2 text-sm text-slate-500">
+                            <span class="text-emerald-600 font-semibold underline decoration-emerald-300 underline-offset-4">Clicca per selezionare più file</span>
+                            <span class="mx-1.5">oppure</span>
+                            <button type="button" onclick="event.stopPropagation(); document.getElementById('folder-input').click();" class="inline-flex items-center gap-1 text-slate-700 hover:text-emerald-700 font-semibold bg-slate-100 hover:bg-emerald-50 border border-slate-200 px-2.5 py-1 rounded-lg transition">
+                                <i data-lucide="folder-open" class="w-3.5 h-3.5 text-emerald-600"></i>
+                                <span>Scegli Cartella</span>
+                            </button>
                         </p>
 
                         <div class="mt-5 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
                             <span class="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg">
-                                <i data-lucide="lock" class="w-3.5 h-3.5 text-emerald-600"></i> Nessun file inviato a server esterni
+                                <i data-lucide="lock" class="w-3.5 h-3.5 text-emerald-600"></i> Zero invio a server esterni
                             </span>
                             <span class="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg">
-                                <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> Prime 3 fatture gratis in chiaro
+                                <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> Primi 3 documenti gratis in chiaro
                             </span>
                             <span class="inline-flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg">
                                 <i data-lucide="calculator" class="w-3.5 h-3.5 text-blue-600"></i> Segno negativo automatico su TD04
@@ -177,7 +179,7 @@
                     <div class="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                         <button onclick="loadDemoInvoices()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
                             <i data-lucide="play-circle" class="w-4 h-4 text-emerald-400"></i>
-                            <span>Non hai file sottomano? Carica 6 Fatture Demo Reali (incluso .p7m e TD04)</span>
+                            <span>Carica 6 Documenti Demo Reali (Fatture, .p7m, TD04 e Corrispettivi RT)</span>
                         </button>
                     </div>
                 </div>
@@ -196,9 +198,9 @@
                         <i data-lucide="check-circle-2" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <h2 class="text-base sm:text-lg font-bold text-slate-900">
-                                <span id="count-total-title">0</span> Fatture Elaborate
+                                <span id="count-total-title">0</span> Documenti Elaborati
                             </h2>
                             <span id="license-status-pill" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
                                 Anteprima Gratuita (3 righe)
@@ -214,7 +216,7 @@
                 <div class="flex flex-wrap items-center gap-2.5">
                     <button onclick="document.getElementById('file-input').click()" class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition flex items-center gap-1.5">
                         <i data-lucide="plus" class="w-4 h-4"></i>
-                        <span>Aggiungi altri file</span>
+                        <span>Aggiungi file</span>
                     </button>
 
                     <button onclick="clearInvoices()" class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 text-xs font-semibold transition flex items-center gap-1.5">
@@ -222,13 +224,11 @@
                         <span>Svuota</span>
                     </button>
 
-                    <!-- Bottone Export CSV (disponibile per test o sbloccato) -->
                     <button onclick="handleExportRequest('csv')" class="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
                         <i data-lucide="file-text" class="w-4 h-4 text-slate-500"></i>
                         <span>Esporta CSV</span>
                     </button>
 
-                    <!-- Bottone Principale Excel (.xlsx) -->
                     <button id="btn-export-xlsx" onclick="handleExportRequest('xlsx')" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold transition flex items-center gap-2 shadow-md shadow-emerald-900/15">
                         <i data-lucide="download" class="w-4 h-4"></i>
                         <span id="btn-export-xlsx-label">Scarica Excel (.xlsx)</span>
@@ -245,7 +245,7 @@
                     </div>
                     <div class="mt-2 flex items-baseline gap-2">
                         <span id="kpi-count" class="text-2xl font-extrabold text-slate-900 font-mono">0</span>
-                        <span id="kpi-types-breakdown" class="text-xs text-slate-500">0 fatture</span>
+                        <span id="kpi-types-breakdown" class="text-xs text-slate-500">0 documenti</span>
                     </div>
                 </div>
 
@@ -268,7 +268,7 @@
                     <div class="mt-2">
                         <span id="kpi-iva" class="text-2xl font-extrabold text-slate-900 font-mono">€ 0,00</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-1">Somma imposta da DatiRiepilogo</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Somma imposta da riepiloghi IVA</p>
                 </div>
 
                 <div class="bg-white p-5 rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50/40 shadow-sm">
@@ -283,19 +283,19 @@
                 </div>
             </div>
 
-            <!-- BANNER PAYWALL AD ALTA CONVERSIONE (Visibile se > 3 fatture e non ancora sbloccato) -->
-            <div id="paywall-banner" class="hidden bg-gradient-to-r from-slate-900 via-slate-850 to-emerald-950 text-white rounded-2xl p-5 sm:p-6 shadow-xl border border-slate-700">
+            <!-- BANNER PAYWALL AD ALTA CONVERSIONE -->
+            <div id="paywall-banner" class="hidden bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-5 sm:p-6 shadow-xl border border-slate-700">
                 <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                     <div class="space-y-1.5">
                         <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-xs font-semibold">
                             <i data-lucide="lock" class="w-3.5 h-3.5"></i>
-                            <span>Anteprima Gratuita: Prime 3 fatture su <span id="banner-total-count">0</span> sbloccate</span>
+                            <span>Anteprima Gratuita: Primi 3 documenti su <span id="banner-total-count">0</span> sbloccati</span>
                         </div>
                         <h3 class="text-lg sm:text-xl font-bold text-white">
-                            Sblocca tutte le <span id="banner-total-count-2" class="text-emerald-400">0</span> righe ed esporta il file Excel (.xlsx) completo
+                            Sblocca tutte le <span id="banner-total-count-2" class="text-emerald-400">0</span> righe ed esporta il file Excel (.xlsx) a 3 fogli
                         </h3>
                         <p class="text-xs sm:text-sm text-slate-300 max-w-2xl">
-                            Include 2 fogli Excel pronti per il commercialista: <strong>Elenco Dettagliato Fatture</strong> + <strong>Riepilogo Automatico per Aliquota IVA e Fornitore</strong>. Pagamento unico, nessun abbonamento.
+                            Include 3 fogli Excel pronti per il commercialista: <strong>Elenco Documenti</strong> + <strong>Riepilogo per Fornitore / RT</strong> + <strong>Riepilogo Aliquote IVA</strong>. Pagamento unico, nessun abbonamento.
                         </p>
                     </div>
                     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
@@ -316,7 +316,7 @@
                             type="text" 
                             id="search-input" 
                             oninput="renderTable()" 
-                            placeholder="Cerca per fornitore, P.IVA, numero fattura o descrizione..." 
+                            placeholder="Cerca per fornitore, P.IVA, numero, RT o descrizione..." 
                             class="w-full bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm outline-none transition"
                         >
                     </div>
@@ -324,16 +324,18 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <select id="filter-type" onchange="renderTable()" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-emerald-500">
                             <option value="ALL">Tutti i documenti</option>
-                            <option value="TD01">Solo Fatture (TD01 / TD24)</option>
+                            <option value="TD01">Solo Fatture (TD01 / TD24 / FSM10)</option>
                             <option value="TD04">Solo Note di Credito (TD04)</option>
+                            <option value="COR10">Solo Corrispettivi RT (COR10)</option>
                             <option value="P7M">Solo Firmati (.p7m)</option>
                         </select>
 
                         <select id="sort-order" onchange="renderTable()" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-emerald-500">
+                            <option value="upload">Ordine di caricamento</option>
                             <option value="date-desc">Data: più recenti prima</option>
                             <option value="date-asc">Data: meno recenti prima</option>
                             <option value="amount-desc">Importo: dal più alto</option>
-                            <option value="supplier-asc">Fornitore: A → Z</option>
+                            <option value="supplier-asc">Emittente / Fornitore: A → Z</option>
                         </select>
                     </div>
                 </div>
@@ -345,27 +347,25 @@
                             <tr class="bg-slate-100/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                                 <th class="py-3.5 px-4">#</th>
                                 <th class="py-3.5 px-4">Data</th>
-                                <th class="py-3.5 px-4">Numero & Tipo</th>
-                                <th class="py-3.5 px-4">Cedente / Fornitore</th>
-                                <th class="py-3.5 px-4">P.IVA / CF</th>
+                                <th class="py-3.5 px-4">Numero &amp; Tipo</th>
+                                <th class="py-3.5 px-4">Cedente / Emittente</th>
+                                <th class="py-3.5 px-4">P.IVA / Matricola RT</th>
                                 <th class="py-3.5 px-4 text-right">Imponibile</th>
                                 <th class="py-3.5 px-4 text-right">IVA</th>
                                 <th class="py-3.5 px-4 text-center">Aliquote</th>
                                 <th class="py-3.5 px-4 text-right">Totale Doc.</th>
-                                <th class="py-3.5 px-4">Pagamento</th>
-                                <th class="py-3.5 px-4">Descrizione</th>
+                                <th class="py-3.5 px-4">Pagamento / Incasso</th>
+                                <th class="py-3.5 px-4">Descrizione / Dettagli</th>
                             </tr>
                         </thead>
-                        <tbody id="invoices-tbody" class="divide-y divide-slate-200 text-xs sm:text-sm">
-                            <!-- Righe iniettate dinamicamente -->
-                        </tbody>
+                        <tbody id="invoices-tbody" class="divide-y divide-slate-200 text-xs sm:text-sm"></tbody>
                     </table>
                 </div>
 
                 <!-- Footer Tabella con CTA ripetuta se bloccato -->
                 <div id="table-footer-cta" class="hidden p-5 bg-slate-50 border-t border-slate-200 text-center">
                     <p class="text-xs text-slate-600 mb-3">
-                        Stai visualizzando l'anteprima gratuita delle prime <strong>3 fatture</strong>. Sblocca il file completo per visualizzare ed esportare tutte le <strong><span id="footer-hidden-count">0</span></strong> righe in Excel.
+                        Stai visualizzando l'anteprima gratuita dei primi <strong>3 documenti</strong>. Sblocca il file completo per visualizzare ed esportare tutte le <strong><span id="footer-hidden-count">0</span></strong> righe in Excel.
                     </p>
                     <button onclick="openCheckoutModal()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold transition shadow-sm">
                         <i data-lucide="unlock" class="w-4 h-4"></i>
@@ -381,10 +381,10 @@
         <!-- ===================================================================== -->
         <section id="come-funziona" class="py-14 sm:py-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-2xl mx-auto mb-12">
-                <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Pensato per Partite IVA, Studi e PMI</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Pensato per Partite IVA, Negozi, Studi e PMI</span>
                 <h2 class="mt-2 text-2xl sm:text-3xl font-extrabold text-slate-900">Basta aprire i file XML uno per uno</h2>
                 <p class="mt-3 text-sm sm:text-base text-slate-600">
-                    Il Cassetto Fiscale dell'Agenzia delle Entrate esporta pacchetti di file illeggibili. FatturaExcel Pro li normalizza in un secondo.
+                    Il Cassetto Fiscale e i Registratori Telematici esportano pacchetti di file XML illeggibili. FatturaExcel Pro li normalizza in un secondo.
                 </p>
             </div>
 
@@ -393,9 +393,9 @@
                     <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 border border-emerald-100">
                         <i data-lucide="file-key-2" class="w-5 h-5"></i>
                     </div>
-                    <h3 class="font-bold text-base text-slate-900">Decodifica nativa .XML e .P7M</h3>
+                    <h3 class="font-bold text-base text-slate-900">Decodifica .XML, .P7M e COR10</h3>
                     <p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                        Rimuove automaticamente la busta crittografica PKCS#7 dei file firmati digitalmente (<code class="font-mono text-xs bg-slate-100 px-1 rounded">.xml.p7m</code>) senza dover usare software esterni come Dike o ArubaSign.
+                        Rimuove la busta crittografica PKCS#7 (<code class="font-mono text-xs bg-slate-100 px-1 rounded">.xml.p7m</code> anche Base64) ed estrae sia le FatturePA che le chiusure giornaliere dei Registratori Telematici (<code class="font-mono text-xs bg-slate-100 px-1 rounded">DatiCorrispettivi</code>).
                     </p>
                 </div>
 
@@ -403,9 +403,9 @@
                     <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 border border-blue-100">
                         <i data-lucide="table-2" class="w-5 h-5"></i>
                     </div>
-                    <h3 class="font-bold text-base text-slate-900">Excel Multi-Foglio Professionale</h3>
+                    <h3 class="font-bold text-base text-slate-900">Excel a 3 Fogli Professionale</h3>
                     <p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                        Genera un file <code class="font-mono text-xs bg-slate-100 px-1 rounded">.xlsx</code> nativo con <strong>Foglio 1 (Elenco Fatture)</strong> e <strong>Foglio 2 (Riepilogo per Aliquota IVA e Fornitore)</strong>, con numeri già formattati per somme e tabelle pivot.
+                        Genera un file <code class="font-mono text-xs bg-slate-100 px-1 rounded">.xlsx</code> nativo con <strong>Elenco Documenti</strong>, <strong>Riepilogo per Fornitore/RT</strong> e <strong>Riepilogo Aliquote IVA</strong>, con celle numeriche e formule <code class="font-mono text-xs bg-slate-100 px-1 rounded">=SOMMA()</code> già pronte.
                     </p>
                 </div>
 
@@ -415,7 +415,7 @@
                     </div>
                     <h3 class="font-bold text-base text-slate-900">Riservatezza Totale (Zero Cloud)</h3>
                     <p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                        Tutto il codice gira nella memoria del tuo browser. I dati dei tuoi clienti, fornitori e fatturati <strong>non vengono mai trasmessi</strong> a nessun server.
+                        Tutto il codice gira nella memoria del tuo browser. I dati dei tuoi clienti, fornitori, corrispettivi e fatturati <strong>non vengono mai trasmessi</strong> a nessun server.
                     </p>
                 </div>
             </div>
@@ -440,11 +440,21 @@
 
                     <details class="group bg-slate-50 border border-slate-200 rounded-2xl p-5">
                         <summary class="flex items-center justify-between font-bold text-sm sm:text-base text-slate-900 cursor-pointer list-none">
+                            <span>Supporta anche gli XML dei Corrispettivi Giornalieri RT?</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 group-open:rotate-180 transition"></i>
+                        </summary>
+                        <p class="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            Sì. Riconosce automaticamente i file XML <code class="font-mono text-xs bg-white px-1 border rounded">DatiCorrispettivi (COR10)</code> estratti dai Registratori Telematici o dal portale Fatture e Corrispettivi, estraendo progressivo, matricola RT, imponibili suddivisi per aliquota IVA, ventilazione, contanti, elettronico e ticket.
+                        </p>
+                    </details>
+
+                    <details class="group bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                        <summary class="flex items-center justify-between font-bold text-sm sm:text-base text-slate-900 cursor-pointer list-none">
                             <span>Come vengono gestite le Note di Credito (TD04)?</span>
                             <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 group-open:rotate-180 transition"></i>
                         </summary>
                         <p class="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                            Il parser riconosce automaticamente il tag <code class="font-mono text-xs bg-white px-1 border rounded">&lt;TipoDocumento&gt;TD04&lt;/TipoDocumento&gt;</code> e applica il segno negativo (<code class="font-mono text-xs">-</code>) a Imponibile, IVA e Totale Documento, così la somma della colonna Excel restituisce il saldo contabile esatto.
+                            Il parser riconosce automaticamente <code class="font-mono text-xs bg-white px-1 border rounded">&lt;TipoDocumento&gt;TD04&lt;/TipoDocumento&gt;</code> (e <code class="font-mono text-xs bg-white px-1 border rounded">TD08</code>) e applica il segno negativo (<code class="font-mono text-xs">-</code>) a Imponibile, IVA e Totale Documento, così la somma della colonna Excel restituisce il saldo contabile esatto.
                         </p>
                     </details>
 
@@ -454,7 +464,7 @@
                             <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500 group-open:rotate-180 transition"></i>
                         </summary>
                         <p class="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                            No. È un pagamento unico una tantum che sblocca immediatamente l'esportazione illimitata nella sessione corrente e ti fornisce un codice licenza riutilizzabile.
+                            No. È un pagamento unico una tantum che sblocca immediatamente l'esportazione illimitata sul browser.
                         </p>
                     </details>
                 </div>
@@ -470,21 +480,21 @@
             <div class="flex items-center gap-2">
                 <span class="font-bold text-white">FatturaExcel Pro</span>
                 <span>•</span>
-                <span>Compatibile con tracciato FatturaPA v1.2.2 (Agenzia delle Entrate)</span>
+                <span>Compatibile con FatturaPA v1.2.2, FSM10 e Corrispettivi RT COR10</span>
             </div>
             <div class="flex items-center gap-4">
                 <span>Elaborazione 100% Client-Side</span>
                 <span>•</span>
-                <span>Privacy & GDPR Compliant</span>
+                <span>Privacy &amp; GDPR Compliant</span>
             </div>
         </div>
     </footer>
 
     <!-- ===================================================================== -->
-    <!-- MODALE CHECKOUT PAYWALL (PREDISPOSTA PER LEMON SQUEEZY / STRIPE)      -->
+    <!-- MODALE CHECKOUT PAYWALL STRIPE                                        -->
     <!-- ===================================================================== -->
-    <div id="checkout-modal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+    <div id="checkout-modal" onclick="if(event.target === this) closeCheckoutModal()" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200">
             
             <!-- Header Modale -->
             <div class="bg-slate-900 text-white p-6 relative">
@@ -496,7 +506,7 @@
                 </span>
                 <h3 class="text-xl font-extrabold">Esportazione Excel Completa</h3>
                 <p class="text-xs text-slate-300 mt-1">
-                    Sblocca tutte le fatture caricate ed esporta il file <code class="font-mono text-emerald-300">.xlsx</code> multi-foglio.
+                    Sblocca tutti i documenti caricati ed esporta il file <code class="font-mono text-emerald-300">.xlsx</code> a 3 fogli.
                 </p>
             </div>
 
@@ -504,7 +514,7 @@
             <div class="p-6 space-y-5">
                 <div class="flex items-baseline justify-between border-b border-slate-100 pb-4">
                     <div>
-                        <span class="text-sm font-bold text-slate-900 block">Licenza Singola / Sessione Illimitata</span>
+                        <span class="text-sm font-bold text-slate-900 block">Licenza Illimitata</span>
                         <span class="text-xs text-slate-500">Pagamento unico • Ricevuta fiscale inclusa</span>
                     </div>
                     <div class="text-right">
@@ -516,11 +526,11 @@
                 <ul class="space-y-2.5 text-xs text-slate-700">
                     <li class="flex items-center gap-2">
                         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
-                        <span>Esportazione illimitata di file <strong>.xml</strong> e <strong>.xml.p7m</strong></span>
+                        <span>Conversione illimitata di <strong>.xml</strong>, <strong>.xml.p7m</strong> e <strong>Corrispettivi RT</strong></span>
                     </li>
                     <li class="flex items-center gap-2">
                         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
-                        <span>File <strong>.xlsx</strong> con Foglio Dettaglio + Foglio Riepilogo IVA</span>
+                        <span>File <strong>.xlsx</strong> con Elenco Documenti + Riepilogo Fornitori + Riepilogo IVA</span>
                     </li>
                     <li class="flex items-center gap-2">
                         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 shrink-0"></i>
@@ -528,37 +538,30 @@
                     </li>
                 </ul>
 
-                <!-- Bottone Checkout Reale (Da collegare al tuo link Lemon Squeezy / Stripe) -->
+                <!-- Bottone Checkout Stripe Reale -->
                 <a 
                     id="real-payment-link"
                     href="https://buy.stripe.com/5kQ4gBcrsfaH4MFbbx5os00" 
-                    onclick="handleRealCheckoutClick(event)"
+                    onclick="handleRealCheckoutClick()"
                     class="w-full py-3.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/15"
                 >
                     <i data-lucide="credit-card" class="w-4 h-4"></i>
                     <span>Procedi al Pagamento Sicuro — €7,90</span>
                 </a>
 
-                <!-- Sezione Codice Licenza già acquistato -->
-                <div class="pt-2 border-t border-slate-100">
-                    <label class="block text-[11px] font-semibold text-slate-500 mb-1.5">Hai già un codice licenza? Inseriscilo qui:</label>
+                <p class="text-[11px] text-center text-slate-400">
+                    I documenti già caricati restano salvati nel browser durante il pagamento.
+                </p>
+
+                <!-- Sezione Codice Licenza -->
+                <div class="pt-3 border-t border-slate-100">
+                    <label class="block text-[11px] font-semibold text-slate-500 mb-1.5">Hai un codice di attivazione? Inseriscilo qui:</label>
                     <div class="flex gap-2">
-                        <input type="text" id="license-code-input" placeholder="es. FATTURA-PRO-2026" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono uppercase outline-none focus:border-emerald-500">
+                        <input type="text" id="license-code-input" placeholder="es. FXP-2026-XXXX" class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono uppercase outline-none focus:border-emerald-500">
                         <button onclick="verifyLicenseCode()" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition">
                             Attiva
                         </button>
                     </div>
-                </div>
-
-                <!-- Pulsante Test Sviluppatore per verificare subito lo sblocco -->
-                <div class="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-center">
-                    <p class="text-[11px] text-amber-800 mb-2">
-                        <strong>Modalità Test / Anteprima Proprietario:</strong> vuoi testare subito lo sblocco completo e scaricare il file Excel reale?
-                    </p>
-                    <button onclick="unlockAppSuccess('TEST-DEMO-UNLOCKED')" class="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-1.5">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-                        <span>Simula Pagamento Riuscito e Sblocca Subito</span>
-                    </button>
                 </div>
             </div>
         </div>
@@ -566,14 +569,13 @@
 
     <script>
         // =========================================================================
-        // CONFIGURAZIONE COMMERCIALE (INSERISCI QUI IL TUO LINK LEMON SQUEEZY / STRIPE)
+        // CONFIGURAZIONE COMMERCIALE
         // =========================================================================
         const CONFIG = {
             FREE_PREVIEW_LIMIT: 3,
-            // Sostituisci questo URL con il tuo checkout link reale di Lemon Squeezy o Stripe
-            // Suggerimento: su Lemon Squeezy imposta il redirect post-acquisto a: https://tuodominio.it/?unlocked=1
-            CHECKOUT_URL: "https://buy.stripe.com/5kQ4gBcrsfaH4MFbbx5os00", 
-            VALID_TEST_CODES: ["FATTURA-PRO-2026", "PRO2026", "VIP"]
+            CHECKOUT_URL: "https://buy.stripe.com/5kQ4gBcrsfaH4MFbbx5os00",
+            SESSION_BACKUP_KEY: "fatturaexcel_pending_invoices_v1",
+            UNLOCK_STORAGE_KEY: "fatturaexcel_unlocked_v1"
         };
 
         // =========================================================================
@@ -581,8 +583,8 @@
         // =========================================================================
         let appState = {
             invoices: [],
-            isUnlocked: false,
-            parseErrors: 0
+            seenKeys: new Set(),
+            isUnlocked: false
         };
 
         // =========================================================================
@@ -592,16 +594,53 @@
             lucide.createIcons();
             setupDragAndDrop();
 
-            // Controlla se l'utente torna da un pagamento Lemon Squeezy (?unlocked=1) o ha già sbloccato
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeCheckoutModal();
+            });
+
+            const payLink = document.getElementById('real-payment-link');
+            if (payLink) payLink.href = CONFIG.CHECKOUT_URL;
+
             const params = new URLSearchParams(window.location.search);
-            if (params.get('unlocked') === '1' || localStorage.getItem('fatturaexcel_unlocked') === 'true') {
+            const returnedFromStripe = params.get('unlocked') === '1';
+
+            if (returnedFromStripe || localStorage.getItem(CONFIG.UNLOCK_STORAGE_KEY) === 'true') {
                 appState.isUnlocked = true;
+                localStorage.setItem(CONFIG.UNLOCK_STORAGE_KEY, 'true');
                 updateLicenseUI();
+
+                if (returnedFromStripe && window.history.replaceState) {
+                    const cleanUrl = window.location.origin + window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
+            }
+
+            try {
+                const cached = sessionStorage.getItem(CONFIG.SESSION_BACKUP_KEY);
+                if (cached) {
+                    const restored = JSON.parse(cached);
+                    if (Array.isArray(restored) && restored.length > 0) {
+                        restored.forEach((item, idx) => {
+                            item.originalIndex = idx;
+                            appState.invoices.push(item);
+                            if (item.dedupeKey) appState.seenKeys.add(item.dedupeKey);
+                        });
+                        sessionStorage.removeItem(CONFIG.SESSION_BACKUP_KEY);
+                        refreshWorkspace();
+                        if (returnedFromStripe) {
+                            showToast('Pagamento confermato! Tutti i documenti sono ora sbloccati.', 'success');
+                        }
+                    }
+                } else if (returnedFromStripe) {
+                    showToast('Licenza Pro attivata con successo!', 'success');
+                }
+            } catch (e) {
+                console.warn('Ripristino sessione non riuscito:', e);
             }
         });
 
         // =========================================================================
-        // GESTIONE DRAG & DROP E CARICAMENTO FILE
+        // GESTIONE DRAG & DROP (INCLUSE INTERE CARTELLE) E CARICAMENTO FILE
         // =========================================================================
         function setupDragAndDrop() {
             const dropzone = document.getElementById('dropzone');
@@ -622,33 +661,91 @@
                 });
             });
 
-            dropzone.addEventListener('drop', (e) => {
-                const files = Array.from(e.dataTransfer.files || []);
+            dropzone.addEventListener('drop', async (e) => {
+                const items = e.dataTransfer?.items;
+                if (items && items.length > 0 && typeof items[0].webkitGetAsEntry === 'function') {
+                    const collectedFiles = [];
+                    const entries = Array.from(items)
+                        .map(item => item.webkitGetAsEntry())
+                        .filter(Boolean);
+
+                    for (const entry of entries) {
+                        await traverseFileTree(entry, collectedFiles);
+                    }
+                    if (collectedFiles.length > 0) {
+                        await processFiles(collectedFiles);
+                        return;
+                    }
+                }
+
+                const files = Array.from(e.dataTransfer?.files || []);
                 if (files.length > 0) {
-                    processFiles(files);
+                    await processFiles(files);
                 }
             });
         }
 
-        function handleFileSelect(event) {
+        function traverseFileTree(entry, fileList) {
+            return new Promise((resolve) => {
+                if (entry.isFile) {
+                    entry.file((file) => {
+                        const lower = file.name.toLowerCase();
+                        if (lower.endsWith('.xml') || lower.endsWith('.p7m')) {
+                            fileList.push(file);
+                        }
+                        resolve();
+                    }, () => resolve());
+                } else if (entry.isDirectory) {
+                    const dirReader = entry.createReader();
+                    const readBatch = () => {
+                        dirReader.readEntries(async (entries) => {
+                            if (!entries.length) {
+                                resolve();
+                            } else {
+                                for (const subEntry of entries) {
+                                    await traverseFileTree(subEntry, fileList);
+                                }
+                                readBatch();
+                            }
+                        }, () => resolve());
+                    };
+                    readBatch();
+                } else {
+                    resolve();
+                }
+            });
+        }
+
+        async function handleFileSelect(event) {
             const files = Array.from(event.target.files || []);
             if (files.length > 0) {
-                processFiles(files);
+                await processFiles(files);
             }
             event.target.value = '';
         }
 
         async function processFiles(files) {
             let addedCount = 0;
+            let duplicateCount = 0;
             let errorCount = 0;
 
             for (const file of files) {
+                if (file.name.startsWith('.')) continue;
+
                 try {
                     const arrayBuffer = await file.arrayBuffer();
                     const parsedList = parseFatturaBuffer(arrayBuffer, file.name);
                     if (parsedList && parsedList.length > 0) {
-                        appState.invoices.push(...parsedList);
-                        addedCount += parsedList.length;
+                        for (const doc of parsedList) {
+                            if (doc.dedupeKey && appState.seenKeys.has(doc.dedupeKey)) {
+                                duplicateCount++;
+                            } else {
+                                if (doc.dedupeKey) appState.seenKeys.add(doc.dedupeKey);
+                                doc.originalIndex = appState.invoices.length;
+                                appState.invoices.push(doc);
+                                addedCount++;
+                            }
+                        }
                     } else {
                         errorCount++;
                     }
@@ -660,79 +757,168 @@
 
             if (addedCount > 0) {
                 refreshWorkspace();
-                showToast(`Elaborate ${addedCount} fatture con successo!`, 'success');
+                showToast(`Elaborati ${addedCount} documenti con successo!`, 'success');
+            }
+            if (duplicateCount > 0) {
+                showToast(`${duplicateCount} documenti duplicati ignorati.`, 'info');
             }
             if (errorCount > 0) {
-                showToast(`${errorCount} file non riconosciuti come FatturaPA valida.`, 'warning');
+                showToast(`${errorCount} file non riconosciuti come tracciato XML AE valido.`, 'warning');
             }
         }
 
         // =========================================================================
-        // PARSER PROFESSIONALE FATTURAPA (.XML E BUSTA FIRMATA .XML.P7M)
+        // PARSER UNIVERSALE AGENZIA DELLE ENTRATE:
+        // 1) FatturaPA (FPR12 / FPA12) + Buste Firmate (.xml.p7m DER e Base64)
+        // 2) Fattura Semplificata (FSM10)
+        // 3) Corrispettivi Telematici Registratore Telematico (COR10)
         // =========================================================================
         function parseFatturaBuffer(arrayBuffer, fileName) {
-            const bytes = new Uint8Array(arrayBuffer);
+            let bytes = new Uint8Array(arrayBuffer);
             const isP7M = fileName.toLowerCase().endsWith('.p7m');
 
-            // Decodifica inizialmente come latin1/iso-8859-1 per preservare gli offset byte-a-byte
-            // e individua l'inizio e la fine del payload XML dentro la busta ASN.1 PKCS#7
-            let rawBinaryStr = "";
-            const chunkSize = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunkSize) {
-                rawBinaryStr += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-            }
+            let rawBinaryStr = uint8ToLatin1(bytes);
 
-            let xmlStart = rawBinaryStr.indexOf('<?xml');
-            if (xmlStart === -1) {
-                // Alcune fatture non hanno <?xml ma iniziano direttamente con <FatturaElettronica o <p:FatturaElettronica
-                const rootMatch = rawBinaryStr.match(/<([a-zA-Z0-9_]+:)?FatturaElettronica\b/);
-                if (rootMatch) {
-                    xmlStart = rootMatch.index;
+            if (!/<([a-zA-Z0-9_]+:)?(FatturaElettronica|FatturaElettronicaSemplificata|DatiCorrispettivi)\b/.test(rawBinaryStr)) {
+                const cleanedB64 = rawBinaryStr
+                    .replace(/-----BEGIN [^-]+-----/g, '')
+                    .replace(/-----END [^-]+-----/g, '')
+                    .replace(/\s+/g, '');
+
+                if (/^[A-Za-z0-9+/=]{64,}$/.test(cleanedB64)) {
+                    try {
+                        const bin = atob(cleanedB64);
+                        const decodedBytes = new Uint8Array(bin.length);
+                        for (let i = 0; i < bin.length; i++) {
+                            decodedBytes[i] = bin.charCodeAt(i);
+                        }
+                        bytes = decodedBytes;
+                        rawBinaryStr = bin;
+                    } catch (e) {
+                        // Prosegui con buffer originale
+                    }
                 }
             }
 
-            if (xmlStart === -1) {
-                throw new Error("Tag root FatturaElettronica non trovato.");
+            const rootOpenRegex = /<([a-zA-Z0-9_]+:)?(FatturaElettronica|FatturaElettronicaSemplificata|DatiCorrispettivi)\b/;
+            const rootMatch = rawBinaryStr.match(rootOpenRegex);
+            if (!rootMatch) {
+                throw new Error("Nessun tracciato XML Agenzia delle Entrate riconosciuto.");
             }
 
-            // Trova la chiusura del tag root
-            const endTagMatch = rawBinaryStr.match(/<\/([a-zA-Z0-9_]+:)?FatturaElettronica\s*>/);
-            const xmlEnd = endTagMatch ? (endTagMatch.index + endTagMatch[0].length) : rawBinaryStr.length;
+            const matchedPrefix = rootMatch[1] || "";
+            const matchedRootName = rootMatch[2];
 
-            // Estrai la fetta di byte esatta del payload XML e decodifica in UTF-8
-            const xmlSlice = bytes.subarray(xmlStart, xmlEnd);
-            let xmlText = new TextDecoder('utf-8', { fatal: false }).decode(xmlSlice);
+            let xmlStart = rootMatch.index;
+            const prologIdx = rawBinaryStr.lastIndexOf('<?xml', rootMatch.index);
+            if (prologIdx !== -1 && (rootMatch.index - prologIdx) < 512) {
+                xmlStart = prologIdx;
+            }
 
-            // Se il file .p7m usa OCTET STRING spezzettati (constructed octet string ASN.1),
-            // occasionalmente compaiono byte di controllo non stampabili tra i tag: li ripuliamo in sicurezza.
+            const closeTag = `</${matchedPrefix}${matchedRootName}>`;
+            const closeIdx = rawBinaryStr.indexOf(closeTag, rootMatch.index);
+            const xmlEnd = closeIdx !== -1 ? (closeIdx + closeTag.length) : rawBinaryStr.length;
+
+            let xmlSlice = bytes.subarray(xmlStart, xmlEnd);
             if (isP7M) {
-                xmlText = cleanP7MArtifacts(xmlText);
+                xmlSlice = stripAsn1OctetChunkHeaders(xmlSlice);
             }
 
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+            const sliceUntilCloseTag = (text) => {
+                const idx = text.indexOf(closeTag);
+                return idx !== -1 ? text.slice(0, idx + closeTag.length) : text;
+            };
 
-            if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
-                // Secondo tentativo con ISO-8859-1 se UTF-8 aveva caratteri accentati legacy
-                const isoText = cleanP7MArtifacts(new TextDecoder('iso-8859-1').decode(xmlSlice));
-                const retryDoc = parser.parseFromString(isoText, "text/xml");
-                if (retryDoc.getElementsByTagName("parsererror").length > 0) {
-                    throw new Error("XML malformato dopo estrazione P7M.");
-                }
-                return extractInvoicesFromXmlDoc(retryDoc, fileName, isP7M);
+            let xmlText = sliceUntilCloseTag(
+                cleanXmlControlChars(new TextDecoder('utf-8', { fatal: false }).decode(xmlSlice))
+            );
+            let xmlDoc = parseXmlSafe(xmlText);
+
+            if (!xmlDoc) {
+                const isoText = sliceUntilCloseTag(
+                    cleanXmlControlChars(new TextDecoder('iso-8859-1').decode(xmlSlice))
+                );
+                xmlDoc = parseXmlSafe(isoText);
             }
 
+            if (!xmlDoc) {
+                throw new Error("XML malformato dopo estrazione.");
+            }
+
+            const rootLocalName = xmlDoc.documentElement?.localName || "";
+
+            if (rootLocalName === "DatiCorrispettivi") {
+                return extractCorrispettiviFromXmlDoc(xmlDoc, fileName, isP7M);
+            }
+            if (rootLocalName === "FatturaElettronicaSemplificata") {
+                return extractSimplifiedInvoiceFromXmlDoc(xmlDoc, fileName, isP7M);
+            }
             return extractInvoicesFromXmlDoc(xmlDoc, fileName, isP7M);
         }
 
-        function cleanP7MArtifacts(str) {
-            // Rimuove eventuali byte nulli o caratteri di controllo ASN.1 inseriti da chunking PKCS#7
+        function parseXmlSafe(xmlString) {
+            const parser = new DOMParser();
+            let doc = parser.parseFromString(xmlString, "text/xml");
+            if (doc.getElementsByTagName("parsererror").length === 0) {
+                return doc;
+            }
+            const sanitized = xmlString.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
+            doc = parser.parseFromString(sanitized, "text/xml");
+            if (doc.getElementsByTagName("parsererror").length === 0) {
+                return doc;
+            }
+            return null;
+        }
+
+        function uint8ToLatin1(bytes) {
+            let out = "";
+            const chunkSize = 0x4000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                out += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return out;
+        }
+
+        function stripAsn1OctetChunkHeaders(bytes) {
+            const out = [];
+            for (let i = 0; i < bytes.length; i++) {
+                if (bytes[i] === 0x04 && i + 1 < bytes.length) {
+                    const lenByte = bytes[i + 1];
+                    if (lenByte === 0x82 && i + 3 < bytes.length) {
+                        const chunkLen = (bytes[i + 2] << 8) | bytes[i + 3];
+                        if (chunkLen > 0 && i + 4 + chunkLen <= bytes.length + 64) {
+                            i += 3;
+                            continue;
+                        }
+                    }
+                    if (lenByte === 0x81 && i + 2 < bytes.length) {
+                        const chunkLen = bytes[i + 2];
+                        if (chunkLen > 0 && i + 3 + chunkLen <= bytes.length + 64) {
+                            i += 2;
+                            continue;
+                        }
+                    }
+                    if (lenByte > 0 && lenByte < 0x80) {
+                        const afterIdx = i + 2 + lenByte;
+                        const isAtEnd = afterIdx >= bytes.length - 64 && afterIdx <= bytes.length + 64;
+                        const hasBerEoc = afterIdx + 1 < bytes.length && bytes[afterIdx] === 0x00 && bytes[afterIdx + 1] === 0x00;
+                        if (isAtEnd || hasBerEoc) {
+                            i += 1;
+                            continue;
+                        }
+                    }
+                }
+                out.push(bytes[i]);
+            }
+            return new Uint8Array(out);
+        }
+
+        function cleanXmlControlChars(str) {
             return str
                 .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
                 .replace(/\uFFFD/g, '');
         }
 
-        // Helper namespace-agnostic per leggere tag FatturaPA (es. sia <Data> che <ns2:Data>)
         function getTagText(parent, tagName) {
             if (!parent) return "";
             const els = parent.getElementsByTagName("*");
@@ -767,11 +953,13 @@
             return result;
         }
 
+        // =========================================================================
+        // 1) ESTRAZIONE FATTURAPA ORDINARIA (FPR12 / FPA12)
+        // =========================================================================
         function extractInvoicesFromXmlDoc(xmlDoc, fileName, isP7M) {
             const header = getFirstElement(xmlDoc, "FatturaElettronicaHeader");
             const bodies = getAllElements(xmlDoc, "FatturaElettronicaBody");
 
-            // Dati Cedente / Prestatore (Fornitore)
             const cedente = getFirstElement(header, "CedentePrestatore");
             const cedenteAnag = getFirstElement(cedente, "Anagrafica");
             let fornitore = getTagText(cedenteAnag, "Denominazione");
@@ -787,7 +975,6 @@
             const pivaFornitore = idCodice ? `${idPaese}${idCodice}` : "";
             const cfFornitore = getTagText(cedente, "CodiceFiscale");
 
-            // Dati Cessionario / Committente (Cliente)
             const cessionario = getFirstElement(header, "CessionarioCommittente");
             const cessionarioAnag = getFirstElement(cessionario, "Anagrafica");
             let cliente = getTagText(cessionarioAnag, "Denominazione");
@@ -806,79 +993,327 @@
             bodies.forEach((body, idx) => {
                 const datiGenDoc = getFirstElement(body, "DatiGeneraliDocumento");
                 const tipoDocCode = getTagText(datiGenDoc, "TipoDocumento") || "TD01";
-                const dataDoc = getTagText(datiGenDoc, "Data");
+                const divisa = (getTagText(datiGenDoc, "Divisa") || "EUR").toUpperCase();
+                const dataDoc = (getTagText(datiGenDoc, "Data") || "").slice(0, 10);
                 const numeroDoc = getTagText(datiGenDoc, "Numero") || `DOC-${idx + 1}`;
-                const causale = getTagText(datiGenDoc, "Causale");
 
-                // Note di Credito (TD04, TD08) hanno segno contabile negativo
+                const causali = getAllElements(datiGenDoc, "Causale")
+                    .map(c => (c.textContent || "").trim())
+                    .filter(Boolean)
+                    .join(" ");
+
                 const isCreditNote = (tipoDocCode === "TD04" || tipoDocCode === "TD08");
                 const sign = isCreditNote ? -1 : 1;
 
-                // Riepiloghi IVA
                 const riepiloghi = getAllElements(body, "DatiRiepilogo");
                 let imponibileSum = 0;
                 let ivaSum = 0;
+                let hasSplitPayment = false;
                 const aliquoteSet = new Set();
+                const vatBreakdown = [];
 
                 riepiloghi.forEach(r => {
                     const imp = parseFloat(getTagText(r, "ImponibileImporto")) || 0;
                     const tax = parseFloat(getTagText(r, "Imposta")) || 0;
                     const aliq = parseFloat(getTagText(r, "AliquotaIVA"));
                     const natura = getTagText(r, "Natura");
+                    const esig = getTagText(r, "EsigibilitaIVA");
+                    if (esig === "S") hasSplitPayment = true;
 
                     imponibileSum += imp;
                     ivaSum += tax;
 
+                    let aliqLabel = "0%";
                     if (!isNaN(aliq) && aliq > 0) {
-                        aliquoteSet.add(`${aliq}%`);
+                        aliqLabel = `${aliq}%`;
                     } else if (natura) {
-                        aliquoteSet.add(`0% (${natura})`);
-                    } else if (aliq === 0) {
-                        aliquoteSet.add("0%");
+                        aliqLabel = `0% (${natura})`;
                     }
+                    aliquoteSet.add(aliqLabel);
+
+                    vatBreakdown.push({
+                        aliquota: aliqLabel,
+                        imponibile: round2(imp * sign),
+                        imposta: round2(tax * sign)
+                    });
                 });
 
+                const bolloVal = parseFloat(getTagText(datiGenDoc, "ImportoBollo")) || 0;
                 const rawTotalDoc = parseFloat(getTagText(datiGenDoc, "ImportoTotaleDocumento"));
                 const imponibileFinal = round2(imponibileSum * sign);
                 const ivaFinal = round2(ivaSum * sign);
-                const totaleFinal = !isNaN(rawTotalDoc)
+                const useXmlTotal = !isNaN(rawTotalDoc) && !(rawTotalDoc === 0 && (imponibileSum !== 0 || ivaSum !== 0));
+                const totaleFinal = useXmlTotal
                     ? round2(Math.abs(rawTotalDoc) * sign)
-                    : round2(imponibileFinal + ivaFinal);
+                    : round2(imponibileFinal + ivaFinal + (bolloVal * sign));
 
-                // Pagamento
-                const dettaglioPag = getFirstElement(body, "DettaglioPagamento");
-                const modPagCode = getTagText(dettaglioPag, "ModalitaPagamento");
-                const scadenzaPag = getTagText(dettaglioPag, "DataScadenzaPagamento");
+                const dettagliPag = getAllElements(body, "DettaglioPagamento");
+                const modPagSet = new Set();
+                const scadenzeList = [];
+                dettagliPag.forEach(dp => {
+                    const mp = getTagText(dp, "ModalitaPagamento");
+                    const sc = getTagText(dp, "DataScadenzaPagamento");
+                    if (mp) modPagSet.add(mapModalitaPagamento(mp));
+                    if (sc) scadenzeList.push(formatDateIT(sc));
+                });
 
-                // Prima riga descrittiva
-                const primaLinea = getFirstElement(body, "DettaglioLinee");
-                const primaDescrizione = getTagText(primaLinea, "Descrizione") || causale || "Fornitura beni / servizi";
+                const linee = getAllElements(body, "DettaglioLinee");
+                let primaDescrizione = "";
+                for (const l of linee) {
+                    const d = getTagText(l, "Descrizione");
+                    if (d && !/^[-*=_.\s]+$/.test(d)) {
+                        primaDescrizione = d;
+                        break;
+                    }
+                }
+                if (!primaDescrizione) primaDescrizione = causali || "Fornitura beni / servizi";
+                if (hasSplitPayment) primaDescrizione += " [Split Payment]";
+                if (divisa !== "EUR") primaDescrizione += ` [Valuta: ${divisa}]`;
+
+                const idFiscaleOut = pivaFornitore || cfFornitore || "N/D";
 
                 extracted.push({
                     id: `${fileName}-${idx}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                    dedupeKey: `FPA|${idFiscaleOut}|${tipoDocCode}|${numeroDoc}|${dataDoc}|${totaleFinal}`,
                     fileName,
                     isP7M,
+                    isCorrispettivo: false,
                     data: dataDoc,
                     numero: numeroDoc,
                     tipoCode: tipoDocCode,
                     tipoLabel: mapTipoDocumento(tipoDocCode),
                     isCreditNote,
                     fornitore,
-                    pivaFornitore: pivaFornitore || cfFornitore || "N/D",
-                    cfFornitore: cfFornitore || pivaFornitore || "N/D",
+                    pivaFornitore: idFiscaleOut,
+                    cfFornitore: cfFornitore || idFiscaleOut,
                     cliente: cliente || "N/D",
                     pivaCliente: pivaCliente || "N/D",
                     imponibile: imponibileFinal,
                     iva: ivaFinal,
                     aliquote: Array.from(aliquoteSet).join(", ") || "N/D",
+                    vatBreakdown,
                     totale: totaleFinal,
-                    modalitaPagamento: mapModalitaPagamento(modPagCode),
-                    scadenza: scadenzaPag || "-",
+                    modalitaPagamento: Array.from(modPagSet).join(", ") || "-",
+                    scadenza: scadenzeList.join(", ") || "-",
                     descrizione: primaDescrizione
                 });
             });
 
             return extracted;
+        }
+
+        // =========================================================================
+        // 2) ESTRAZIONE FATTURA ELETTRONICA SEMPLIFICATA (FSM10)
+        // =========================================================================
+        function extractSimplifiedInvoiceFromXmlDoc(xmlDoc, fileName, isP7M) {
+            const header = getFirstElement(xmlDoc, "FatturaElettronicaHeader");
+            const bodies = getAllElements(xmlDoc, "FatturaElettronicaBody");
+
+            const cedente = getFirstElement(header, "CedentePrestatore");
+            let fornitore = getTagText(cedente, "Denominazione");
+            if (!fornitore) {
+                fornitore = `${getTagText(cedente, "Nome")} ${getTagText(cedente, "Cognome")}`.trim() || "Fornitore Sconosciuto";
+            }
+            const ivaNode = getFirstElement(cedente, "IdFiscaleIVA");
+            const pivaFornitore = getTagText(ivaNode, "IdCodice")
+                ? `${getTagText(ivaNode, "IdPaese")}${getTagText(ivaNode, "IdCodice")}`
+                : (getTagText(cedente, "CodiceFiscale") || "N/D");
+
+            const extracted = [];
+            bodies.forEach((body, idx) => {
+                const datiGen = getFirstElement(body, "DatiGeneraliDocumento");
+                const tipoCode = getTagText(datiGen, "TipoDocumento") || "TD07";
+                const dataDoc = (getTagText(datiGen, "Data") || "").slice(0, 10);
+                const numeroDoc = getTagText(datiGen, "Numero") || `FSM-${idx + 1}`;
+                const isCreditNote = (tipoCode === "TD08");
+                const sign = isCreditNote ? -1 : 1;
+
+                const linee = getAllElements(body, "DatiBeniServizi");
+                let lordoSum = 0;
+                let ivaSum = 0;
+                const aliquoteSet = new Set();
+                const vatBreakdown = [];
+
+                linee.forEach(l => {
+                    const importoLordo = parseFloat(getTagText(l, "Importo")) || 0;
+                    const imposta = parseFloat(getTagText(l, "Imposta")) || 0;
+                    const aliq = parseFloat(getTagText(l, "Aliquota"));
+                    const natura = getTagText(l, "Natura");
+
+                    lordoSum += importoLordo;
+                    ivaSum += imposta;
+
+                    const impRiga = round2(importoLordo - imposta);
+                    let aliqLabel = !isNaN(aliq) && aliq > 0 ? `${aliq}%` : (natura ? `0% (${natura})` : "0%");
+                    aliquoteSet.add(aliqLabel);
+                    vatBreakdown.push({
+                        aliquota: aliqLabel,
+                        imponibile: round2(impRiga * sign),
+                        imposta: round2(imposta * sign)
+                    });
+                });
+
+                const imponibileFinal = round2((lordoSum - ivaSum) * sign);
+                const ivaFinal = round2(ivaSum * sign);
+                const totaleFinal = round2(lordoSum * sign);
+                const primaDesc = getTagText(linee[0], "Descrizione") || "Fattura Semplificata";
+
+                extracted.push({
+                    id: `${fileName}-${idx}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                    dedupeKey: `FSM|${pivaFornitore}|${tipoCode}|${numeroDoc}|${dataDoc}|${totaleFinal}`,
+                    fileName,
+                    isP7M,
+                    isCorrispettivo: false,
+                    data: dataDoc,
+                    numero: numeroDoc,
+                    tipoCode,
+                    tipoLabel: mapTipoDocumento(tipoCode),
+                    isCreditNote,
+                    fornitore,
+                    pivaFornitore,
+                    cfFornitore: pivaFornitore,
+                    cliente: "N/D",
+                    pivaCliente: "N/D",
+                    imponibile: imponibileFinal,
+                    iva: ivaFinal,
+                    aliquote: Array.from(aliquoteSet).join(", ") || "N/D",
+                    vatBreakdown,
+                    totale: totaleFinal,
+                    modalitaPagamento: "-",
+                    scadenza: "-",
+                    descrizione: primaDesc
+                });
+            });
+
+            return extracted;
+        }
+
+        // =========================================================================
+        // 3) ESTRAZIONE CORRISPETTIVI TELEMATICI REGISTRATORE TELEMATICO (COR10)
+        // =========================================================================
+        function extractCorrispettiviFromXmlDoc(xmlDoc, fileName, isP7M) {
+            const progressivo = getTagText(xmlDoc, "Progressivo") || "1";
+            const dataOra = getTagText(xmlDoc, "DataOraRilevazione");
+            const dataDoc = dataOra ? dataOra.slice(0, 10) : "";
+            const oraDoc = dataOra && dataOra.length >= 16 ? dataOra.slice(11, 16) : "";
+
+            let matricolaRT = getTagText(xmlDoc, "IdDispositivo");
+            if (!matricolaRT) {
+                const certNodes = getAllElements(xmlDoc, "X509Certificate");
+                for (const certNode of certNodes) {
+                    const certText = (certNode.textContent || "").trim();
+                    if (!certText) continue;
+                    try {
+                        const rawCert = atob(certText.replace(/\s+/g, ''));
+                        const oidMatch = rawCert.match(/\x55\x04\x03[\x0c\x13]\x0b([A-Z0-9]{11})/);
+                        if (oidMatch) {
+                            matricolaRT = oidMatch[1];
+                            break;
+                        }
+                        const rtFallback = rawCert.match(/[0-9]{2}[A-Z0-9]{3}[0-9]{6}/);
+                        if (rtFallback) {
+                            matricolaRT = rtFallback[0];
+                            break;
+                        }
+                    } catch (e) {
+                        // Ignora errori decodifica certificato
+                    }
+                }
+            }
+            if (!matricolaRT) {
+                const fnMatch = fileName.match(/[0-9]{2}[A-Z0-9]{3}[0-9]{6}/i);
+                matricolaRT = fnMatch ? fnMatch[0].toUpperCase() : "RT-FISCALE";
+            }
+
+            const riepiloghi = getAllElements(xmlDoc, "Riepilogo");
+            let imponibileSum = 0;
+            let ivaSum = 0;
+            const aliquoteSet = new Set();
+            const vatBreakdown = [];
+
+            riepiloghi.forEach(r => {
+                // Nei tracciati AE COR10, Ammontare è già l'imponibile netto di resi e annulli
+                const imp = round2(parseFloat(getTagText(r, "Ammontare")) || 0);
+                const tax = round2(parseFloat(getTagText(r, "Imposta")) || 0);
+                const aliq = parseFloat(getTagText(r, "AliquotaIVA"));
+                const natura = getTagText(r, "Natura");
+                const ventilazione = getTagText(r, "VentilazioneIVA");
+
+                imponibileSum += imp;
+                ivaSum += tax;
+
+                if (imp !== 0 || tax !== 0) {
+                    let aliqLabel = "0%";
+                    if (ventilazione === "SI") {
+                        aliqLabel = "Ventilazione IVA";
+                    } else if (!isNaN(aliq) && aliq > 0) {
+                        aliqLabel = `${aliq}%`;
+                    } else if (natura) {
+                        aliqLabel = `0% (${natura})`;
+                    }
+                    aliquoteSet.add(aliqLabel);
+                    vatBreakdown.push({
+                        aliquota: aliqLabel,
+                        imponibile: imp,
+                        imposta: tax
+                    });
+                }
+            });
+
+            const totaliNode = getFirstElement(xmlDoc, "Totali");
+            const numDocComm = getTagText(totaliNode, "NumeroDocCommerciali") || "0";
+            const pagatoContanti = parseFloat(getTagText(totaliNode, "PagatoContanti")) || 0;
+            const pagatoElettronico = parseFloat(getTagText(totaliNode, "PagatoElettronico")) || 0;
+            const ticket = parseFloat(getTagText(totaliNode, "Ticket")) || 0;
+
+            let nonRiscosso = 0;
+            const nonRiscossoNode = getFirstElement(totaliNode, "NonRiscosso");
+            if (nonRiscossoNode) {
+                if (nonRiscossoNode.children && nonRiscossoNode.children.length > 0) {
+                    Array.from(nonRiscossoNode.children).forEach(child => {
+                        nonRiscosso += parseFloat((child.textContent || "").trim()) || 0;
+                    });
+                } else {
+                    nonRiscosso = parseFloat((nonRiscossoNode.textContent || "").trim()) || 0;
+                }
+            }
+
+            const imponibileFinal = round2(imponibileSum);
+            const ivaFinal = round2(ivaSum);
+            const totaleDaIncassi = round2(pagatoContanti + pagatoElettronico + ticket + nonRiscosso);
+            const totaleFinal = totaleDaIncassi > 0 ? totaleDaIncassi : round2(imponibileFinal + ivaFinal);
+
+            const incassiParts = [];
+            if (pagatoContanti > 0) incassiParts.push(`Contanti ${formatEuro(pagatoContanti)}`);
+            if (pagatoElettronico > 0) incassiParts.push(`Elettr. ${formatEuro(pagatoElettronico)}`);
+            if (ticket > 0) incassiParts.push(`Ticket ${formatEuro(ticket)}`);
+            if (nonRiscosso > 0) incassiParts.push(`Non risc. ${formatEuro(nonRiscosso)}`);
+
+            return [{
+                id: `${fileName}-0-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                dedupeKey: `COR10|${matricolaRT}|${progressivo}|${dataDoc}|${totaleFinal}`,
+                fileName,
+                isP7M,
+                isCorrispettivo: true,
+                data: dataDoc,
+                numero: `Chiusura #${progressivo}`,
+                tipoCode: "COR10",
+                tipoLabel: "Corrispettivi RT",
+                isCreditNote: false,
+                fornitore: `Registratore Telematico (${matricolaRT})`,
+                pivaFornitore: matricolaRT,
+                cfFornitore: matricolaRT,
+                cliente: "Corrispettivi Giornalieri",
+                pivaCliente: "-",
+                imponibile: imponibileFinal,
+                iva: ivaFinal,
+                aliquote: Array.from(aliquoteSet).join(", ") || "0%",
+                vatBreakdown,
+                totale: totaleFinal,
+                modalitaPagamento: incassiParts.join(" • ") || "-",
+                scadenza: "-",
+                descrizione: `${numDocComm} doc. commerciali${oraDoc ? ` • Rilevazione ore ${oraDoc}` : ''}`
+            }];
         }
 
         function mapTipoDocumento(code) {
@@ -888,11 +1323,14 @@
                 "TD04": "Nota di Credito",
                 "TD05": "Nota di Debito",
                 "TD06": "Parcella",
+                "TD07": "Fattura Semplificata",
+                "TD08": "NC Semplificata",
                 "TD16": "Integrazione Reverse Charge",
                 "TD17": "Integrazione Servizi Estero",
                 "TD18": "Integrazione Acquisti UE",
                 "TD24": "Fattura Differita",
-                "TD25": "Fattura Differita Triangolare"
+                "TD25": "Fattura Differita Triangolare",
+                "COR10": "Corrispettivi RT"
             };
             return map[code] || code;
         }
@@ -927,11 +1365,11 @@
             }
             section.classList.remove('hidden');
 
-            // Calcolo KPI totali su tutte le fatture
             let totImp = 0;
             let totIva = 0;
             let totDoc = 0;
             let creditNotesCount = 0;
+            let corrCount = 0;
             let p7mCount = 0;
 
             appState.invoices.forEach(inv => {
@@ -939,14 +1377,22 @@
                 totIva += inv.iva;
                 totDoc += inv.totale;
                 if (inv.isCreditNote) creditNotesCount++;
+                if (inv.isCorrispettivo) corrCount++;
                 if (inv.isP7M) p7mCount++;
             });
 
             const totalCount = appState.invoices.length;
+            const regularInvoicesCount = totalCount - creditNotesCount - corrCount;
+
             document.getElementById('count-total-title').textContent = totalCount;
             document.getElementById('kpi-count').textContent = totalCount;
-            document.getElementById('kpi-types-breakdown').textContent = 
-                `${totalCount - creditNotesCount} fatture${creditNotesCount > 0 ? `, ${creditNotesCount} NC` : ''}`;
+
+            const parts = [];
+            if (regularInvoicesCount > 0) parts.push(`${regularInvoicesCount} fatture`);
+            if (creditNotesCount > 0) parts.push(`${creditNotesCount} NC`);
+            if (corrCount > 0) parts.push(`${corrCount} corrisp. RT`);
+            document.getElementById('kpi-types-breakdown').textContent = parts.join(', ') || `${totalCount} doc.`;
+
             document.getElementById('kpi-imponibile').textContent = formatEuro(totImp);
             document.getElementById('kpi-iva').textContent = formatEuro(totIva);
             document.getElementById('kpi-totale').textContent = formatEuro(totDoc);
@@ -958,7 +1404,6 @@
             renderTable();
             lucide.createIcons();
 
-            // Scorri dolcemente ai risultati al primo caricamento
             section.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
@@ -989,7 +1434,7 @@
                     statusPill.textContent = "Licenza Pro Attiva • Tutto Sbloccato";
                     statusPill.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200";
                 } else {
-                    statusPill.textContent = "Gratis (fino a 3 fatture)";
+                    statusPill.textContent = "Gratis (fino a 3 documenti)";
                     statusPill.className = "text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200";
                 }
                 exportBtnLabel.textContent = `Scarica Excel (.xlsx) Completo`;
@@ -1002,20 +1447,25 @@
             const filterType = document.getElementById('filter-type').value;
             const sortOrder = document.getElementById('sort-order').value;
 
-            let filtered = appState.invoices.filter(inv => {
-                if (filterType === "TD01" && inv.isCreditNote) return false;
+            let filtered = appState.invoices.filter((inv, idx) => {
+                if (filterType === "TD01" && (inv.isCreditNote || inv.isCorrispettivo)) return false;
                 if (filterType === "TD04" && !inv.isCreditNote) return false;
+                if (filterType === "COR10" && !inv.isCorrispettivo) return false;
                 if (filterType === "P7M" && !inv.isP7M) return false;
 
                 if (search) {
-                    const hay = `${inv.fornitore} ${inv.pivaFornitore} ${inv.numero} ${inv.descrizione} ${inv.fileName}`.toLowerCase();
+                    const origIdx = typeof inv.originalIndex === 'number' ? inv.originalIndex : idx;
+                    const isLocked = !appState.isUnlocked && origIdx >= CONFIG.FREE_PREVIEW_LIMIT;
+                    const hay = isLocked
+                        ? `${inv.numero} ${inv.tipoCode}`.toLowerCase()
+                        : `${inv.fornitore} ${inv.pivaFornitore} ${inv.numero} ${inv.descrizione} ${inv.fileName}`.toLowerCase();
                     if (!hay.includes(search)) return false;
                 }
                 return true;
             });
 
-            // Ordinamento
             filtered.sort((a, b) => {
+                if (sortOrder === "upload") return (a.originalIndex ?? 0) - (b.originalIndex ?? 0);
                 if (sortOrder === "date-desc") return (b.data || "").localeCompare(a.data || "");
                 if (sortOrder === "date-asc") return (a.data || "").localeCompare(b.data || "");
                 if (sortOrder === "amount-desc") return b.totale - a.totale;
@@ -1029,7 +1479,7 @@
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="11" class="py-10 text-center text-slate-500 text-sm">
-                            Nessuna fattura corrisponde ai filtri selezionati.
+                            Nessun documento corrisponde ai filtri selezionati.
                         </td>
                     </tr>
                 `;
@@ -1037,55 +1487,77 @@
             }
 
             filtered.forEach((inv, index) => {
-                const isLockedRow = !appState.isUnlocked && index >= CONFIG.FREE_PREVIEW_LIMIT;
+                const origIdx = typeof inv.originalIndex === 'number' ? inv.originalIndex : index;
+                const isLockedRow = !appState.isUnlocked && origIdx >= CONFIG.FREE_PREVIEW_LIMIT;
                 const blurClass = isLockedRow ? "paywall-blur" : "";
 
                 const tr = document.createElement('tr');
-                tr.className = `hover:bg-slate-50/90 transition ${inv.isCreditNote ? 'bg-rose-50/30' : ''}`;
+                let rowBg = "hover:bg-slate-50/90";
+                if (inv.isCreditNote) rowBg = "bg-rose-50/30 hover:bg-rose-50/60";
+                else if (inv.isCorrispettivo) rowBg = "bg-sky-50/35 hover:bg-sky-50/60";
+                tr.className = `transition ${rowBg} ${isLockedRow ? 'cursor-pointer' : ''}`;
+                if (isLockedRow) {
+                    tr.title = "Riga bloccata nell'anteprima gratuita — Clicca per sbloccare tutte le righe";
+                    tr.onclick = openCheckoutModal;
+                }
 
-                const typeBadgeClass = inv.isCreditNote
-                    ? "bg-rose-100 text-rose-800 border-rose-200"
-                    : "bg-slate-100 text-slate-700 border-slate-200";
+                let typeBadgeClass = "bg-slate-100 text-slate-700 border-slate-200";
+                if (inv.isCreditNote) typeBadgeClass = "bg-rose-100 text-rose-800 border-rose-200";
+                else if (inv.isCorrispettivo) typeBadgeClass = "bg-sky-100 text-sky-800 border-sky-200";
 
                 const p7mBadge = inv.isP7M
                     ? `<span class="ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">.p7m</span>`
                     : "";
 
+                const lockIndicator = isLockedRow
+                    ? `<span class="ml-1 text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Bloccato</span>`
+                    : "";
+
+                // Offusca realmente i valori nel DOM per le righe bloccate dal paywall
+                const dispFornitore = isLockedRow ? "•••••••••••• S.R.L." : escapeHtml(inv.fornitore);
+                const dispPiva = isLockedRow ? "IT•••••••••••" : escapeHtml(inv.pivaFornitore);
+                const dispImp = isLockedRow ? "€ •••,••" : formatEuro(inv.imponibile);
+                const dispIva = isLockedRow ? "€ ••,••" : formatEuro(inv.iva);
+                const dispAliq = isLockedRow ? "••%" : escapeHtml(inv.aliquote);
+                const dispTot = isLockedRow ? "€ •••,••" : formatEuro(inv.totale);
+                const dispPag = isLockedRow ? "••••••••••" : escapeHtml(inv.modalitaPagamento);
+                const dispDesc = isLockedRow ? "Contenuto bloccato — Sblocca per visualizzare ed esportare" : escapeHtml(inv.descrizione);
+
                 tr.innerHTML = `
                     <td class="py-3 px-4 font-mono text-xs text-slate-400">${index + 1}</td>
                     <td class="py-3 px-4 font-mono text-xs text-slate-700 whitespace-nowrap">${formatDateIT(inv.data)}</td>
                     <td class="py-3 px-4 whitespace-nowrap">
-                        <div class="font-mono text-xs font-semibold text-slate-900">${escapeHtml(inv.numero)}${p7mBadge}</div>
+                        <div class="font-mono text-xs font-semibold text-slate-900">${escapeHtml(inv.numero)}${p7mBadge}${lockIndicator}</div>
                         <span class="inline-block mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${typeBadgeClass}">
                             ${escapeHtml(inv.tipoCode)} • ${escapeHtml(inv.tipoLabel)}
                         </span>
                     </td>
-                    <td class="py-3 px-4 font-semibold text-slate-900 max-w-[210px] truncate ${blurClass}" title="${escapeHtml(inv.fornitore)}">
-                        ${escapeHtml(inv.fornitore)}
+                    <td class="py-3 px-4 font-semibold text-slate-900 max-w-[210px] truncate ${blurClass}" title="${isLockedRow ? '' : escapeHtml(inv.fornitore)}">
+                        ${dispFornitore}
                     </td>
                     <td class="py-3 px-4 font-mono text-xs text-slate-600 whitespace-nowrap ${blurClass}">
-                        ${escapeHtml(inv.pivaFornitore)}
+                        ${dispPiva}
                     </td>
                     <td class="py-3 px-4 font-mono text-xs text-right whitespace-nowrap ${inv.isCreditNote ? 'text-rose-700' : 'text-slate-700'} ${blurClass}">
-                        ${formatEuro(inv.imponibile)}
+                        ${dispImp}
                     </td>
                     <td class="py-3 px-4 font-mono text-xs text-right whitespace-nowrap ${inv.isCreditNote ? 'text-rose-700' : 'text-slate-700'} ${blurClass}">
-                        ${formatEuro(inv.iva)}
+                        ${dispIva}
                     </td>
                     <td class="py-3 px-4 text-center whitespace-nowrap ${blurClass}">
                         <span class="text-[11px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
-                            ${escapeHtml(inv.aliquote)}
+                            ${dispAliq}
                         </span>
                     </td>
                     <td class="py-3 px-4 font-mono text-xs font-bold text-right whitespace-nowrap ${inv.isCreditNote ? 'text-rose-700' : 'text-emerald-700'} ${blurClass}">
-                        ${formatEuro(inv.totale)}
+                        ${dispTot}
                     </td>
                     <td class="py-3 px-4 text-xs text-slate-600 whitespace-nowrap ${blurClass}">
-                        <div>${escapeHtml(inv.modalitaPagamento)}</div>
-                        ${inv.scadenza !== "-" ? `<div class="text-[10px] text-slate-400 font-mono">Scad: ${formatDateIT(inv.scadenza)}</div>` : ''}
+                        <div>${dispPag}</div>
+                        ${(!isLockedRow && inv.scadenza !== "-") ? `<div class="text-[10px] text-slate-400 font-mono">Scad: ${escapeHtml(inv.scadenza)}</div>` : ''}
                     </td>
-                    <td class="py-3 px-4 text-xs text-slate-500 max-w-[200px] truncate ${blurClass}" title="${escapeHtml(inv.descrizione)}">
-                        ${escapeHtml(inv.descrizione)}
+                    <td class="py-3 px-4 text-xs text-slate-500 max-w-[210px] truncate ${blurClass}" title="${isLockedRow ? '' : escapeHtml(inv.descrizione)}">
+                        ${dispDesc}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1094,20 +1566,21 @@
 
         function clearInvoices() {
             appState.invoices = [];
+            appState.seenKeys.clear();
+            sessionStorage.removeItem(CONFIG.SESSION_BACKUP_KEY);
             document.getElementById('results-section').classList.add('hidden');
-            showToast('Elenco fatture svuotato.', 'info');
+            showToast('Elenco documenti svuotato.', 'info');
         }
 
         // =========================================================================
-        // ESPORTAZIONE EXCEL (.XLSX MULTI-FOGLIO) E CSV
+        // ESPORTAZIONE EXCEL (.XLSX A 3 FOGLI CON FORMULE =SOMMA) E CSV
         // =========================================================================
         function handleExportRequest(format) {
             if (appState.invoices.length === 0) {
-                showToast('Carica prima almeno una fattura XML o P7M.', 'warning');
+                showToast('Carica prima almeno un file XML o P7M.', 'warning');
                 return;
             }
 
-            // Se ci sono più di 3 fatture e l'utente non ha ancora sbloccato, apri il checkout
             if (!appState.isUnlocked && appState.invoices.length > CONFIG.FREE_PREVIEW_LIMIT) {
                 openCheckoutModal();
                 return;
@@ -1120,66 +1593,85 @@
             }
         }
 
+        function applyCurrencyFormat(ws, colLetters, startRow, endRow) {
+            for (let r = startRow; r <= endRow; r++) {
+                for (const col of colLetters) {
+                    const cellRef = `${col}${r}`;
+                    if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
+                        ws[cellRef].z = '#,##0.00';
+                    }
+                }
+            }
+        }
+
+        function setSumFormulaCell(ws, colLetter, totalRow, dataEndRow, isCurrency = true) {
+            const cell = { t: 'n', f: `SUM(${colLetter}2:${colLetter}${dataEndRow})` };
+            if (isCurrency) cell.z = '#,##0.00';
+            ws[`${colLetter}${totalRow}`] = cell;
+        }
+
         function downloadRealExcel() {
+            if (typeof XLSX === 'undefined') {
+                showToast('Modulo Excel non disponibile offline. Usa "Esporta CSV" o ricarica la pagina.', 'warning');
+                return;
+            }
             try {
-                // FOGLIO 1: Elenco Completo Fatture
+                // FOGLIO 1: Elenco Completo Documenti
                 const rowsSheet1 = appState.invoices.map((inv, idx) => ({
                     "N.": idx + 1,
-                    "Data Documento": inv.data,
-                    "Numero Fattura": inv.numero,
+                    "Data Documento": formatDateIT(inv.data),
+                    "Numero Documento": inv.numero,
                     "Codice Tipo": inv.tipoCode,
                     "Tipo Documento": inv.tipoLabel,
-                    "Cedente / Fornitore": inv.fornitore,
-                    "Partita IVA Fornitore": inv.pivaFornitore,
-                    "Codice Fiscale Fornitore": inv.cfFornitore,
+                    "Cedente / Emittente": inv.fornitore,
+                    "P.IVA / Matricola RT": inv.pivaFornitore,
+                    "Codice Fiscale": inv.cfFornitore,
                     "Cliente / Cessionario": inv.cliente,
                     "P.IVA Cliente": inv.pivaCliente,
                     "Imponibile (€)": inv.imponibile,
                     "IVA (€)": inv.iva,
                     "Aliquote IVA": inv.aliquote,
                     "Totale Documento (€)": inv.totale,
-                    "Modalità Pagamento": inv.modalitaPagamento,
+                    "Pagamento / Incasso": inv.modalitaPagamento,
                     "Scadenza Pagamento": inv.scadenza,
-                    "Descrizione Principale": inv.descrizione,
+                    "Descrizione / Dettagli": inv.descrizione,
                     "Formato Origine": inv.isP7M ? "Firmato (.p7m)" : "XML Standard",
                     "Nome File": inv.fileName
                 }));
 
-                // Riga Totali in fondo al Foglio 1
-                const totImp = round2(appState.invoices.reduce((acc, i) => acc + i.imponibile, 0));
-                const totIva = round2(appState.invoices.reduce((acc, i) => acc + i.iva, 0));
-                const totDoc = round2(appState.invoices.reduce((acc, i) => acc + i.totale, 0));
+                const s1DataEnd = rowsSheet1.length + 1;
+                const s1TotalRow = s1DataEnd + 1;
 
                 rowsSheet1.push({
                     "N.": "",
                     "Data Documento": "",
-                    "Numero Fattura": "",
+                    "Numero Documento": "",
                     "Codice Tipo": "",
                     "Tipo Documento": "",
-                    "Cedente / Fornitore": "TOTALE COMPLESSIVO",
-                    "Partita IVA Fornitore": "",
-                    "Codice Fiscale Fornitore": "",
+                    "Cedente / Emittente": "TOTALE COMPLESSIVO",
+                    "P.IVA / Matricola RT": "",
+                    "Codice Fiscale": "",
                     "Cliente / Cessionario": "",
                     "P.IVA Cliente": "",
-                    "Imponibile (€)": totImp,
-                    "IVA (€)": totIva,
+                    "Imponibile (€)": 0,
+                    "IVA (€)": 0,
                     "Aliquote IVA": "",
-                    "Totale Documento (€)": totDoc,
-                    "Modalità Pagamento": "",
+                    "Totale Documento (€)": 0,
+                    "Pagamento / Incasso": "",
                     "Scadenza Pagamento": "",
-                    "Descrizione Principale": "",
+                    "Descrizione / Dettagli": "",
                     "Formato Origine": "",
                     "Nome File": ""
                 });
 
-                // FOGLIO 2: Riepilogo per Fornitore (utilissimo per il commercialista)
+                // FOGLIO 2: Riepilogo per Fornitore / Registratore Telematico
                 const supplierMap = {};
                 appState.invoices.forEach(inv => {
-                    const key = `${inv.fornitore} (${inv.pivaFornitore})`;
+                    const key = `${inv.fornitore}|${inv.pivaFornitore}`;
                     if (!supplierMap[key]) {
                         supplierMap[key] = {
-                            "Fornitore": inv.fornitore,
-                            "Partita IVA": inv.pivaFornitore,
+                            "Cedente / Emittente": inv.fornitore,
+                            "P.IVA / Matricola RT": inv.pivaFornitore,
                             "N. Documenti": 0,
                             "Totale Imponibile (€)": 0,
                             "Totale IVA (€)": 0,
@@ -1192,29 +1684,100 @@
                     supplierMap[key]["Totale Lordo (€)"] = round2(supplierMap[key]["Totale Lordo (€)"] + inv.totale);
                 });
                 const rowsSheet2 = Object.values(supplierMap).sort((a, b) => b["Totale Lordo (€)"] - a["Totale Lordo (€)"]);
+                const s2DataEnd = rowsSheet2.length + 1;
+                const s2TotalRow = s2DataEnd + 1;
 
-                // Costruzione Workbook SheetJS
+                rowsSheet2.push({
+                    "Cedente / Emittente": "TOTALE COMPLESSIVO",
+                    "P.IVA / Matricola RT": "",
+                    "N. Documenti": 0,
+                    "Totale Imponibile (€)": 0,
+                    "Totale IVA (€)": 0,
+                    "Totale Lordo (€)": 0
+                });
+
+                // FOGLIO 3: Riepilogo per Aliquota IVA
+                const vatMap = {};
+                appState.invoices.forEach(inv => {
+                    const categoria = inv.isCorrispettivo ? "Corrispettivi RT" : "Fatture / NC";
+                    const breakdown = (inv.vatBreakdown && inv.vatBreakdown.length > 0)
+                        ? inv.vatBreakdown
+                        : [{ aliquota: inv.aliquote, imponibile: inv.imponibile, imposta: inv.iva }];
+
+                    breakdown.forEach(item => {
+                        const vKey = `${categoria}|${item.aliquota}`;
+                        if (!vatMap[vKey]) {
+                            vatMap[vKey] = {
+                                "Categoria": categoria,
+                                "Aliquota / Natura IVA": item.aliquota,
+                                "Imponibile (€)": 0,
+                                "Imposta IVA (€)": 0,
+                                "Totale (€)": 0
+                            };
+                        }
+                        vatMap[vKey]["Imponibile (€)"] = round2(vatMap[vKey]["Imponibile (€)"] + item.imponibile);
+                        vatMap[vKey]["Imposta IVA (€)"] = round2(vatMap[vKey]["Imposta IVA (€)"] + item.imposta);
+                        vatMap[vKey]["Totale (€)"] = round2(vatMap[vKey]["Imponibile (€)"] + vatMap[vKey]["Imposta IVA (€)"]);
+                    });
+                });
+                const rowsSheet3 = Object.values(vatMap);
+                const s3DataEnd = rowsSheet3.length + 1;
+                const s3TotalRow = s3DataEnd + 1;
+
+                rowsSheet3.push({
+                    "Categoria": "TOTALE RIEPILOGHI IVA",
+                    "Aliquota / Natura IVA": "",
+                    "Imponibile (€)": 0,
+                    "Imposta IVA (€)": 0,
+                    "Totale (€)": 0
+                });
+
                 const wb = XLSX.utils.book_new();
                 const ws1 = XLSX.utils.json_to_sheet(rowsSheet1);
                 const ws2 = XLSX.utils.json_to_sheet(rowsSheet2);
+                const ws3 = XLSX.utils.json_to_sheet(rowsSheet3);
 
-                // Larghezza colonne ottimizzata
+                applyCurrencyFormat(ws1, ['K', 'L', 'N'], 2, s1DataEnd);
+                setSumFormulaCell(ws1, 'K', s1TotalRow, s1DataEnd, true);
+                setSumFormulaCell(ws1, 'L', s1TotalRow, s1DataEnd, true);
+                setSumFormulaCell(ws1, 'N', s1TotalRow, s1DataEnd, true);
+
+                // Filtro automatico nativo sull'intestazione del Foglio 1
+                ws1['!autofilter'] = {
+                    ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: s1DataEnd - 1, c: 18 } })
+                };
+
+                applyCurrencyFormat(ws2, ['D', 'E', 'F'], 2, s2DataEnd);
+                setSumFormulaCell(ws2, 'C', s2TotalRow, s2DataEnd, false);
+                setSumFormulaCell(ws2, 'D', s2TotalRow, s2DataEnd, true);
+                setSumFormulaCell(ws2, 'E', s2TotalRow, s2DataEnd, true);
+                setSumFormulaCell(ws2, 'F', s2TotalRow, s2DataEnd, true);
+
+                applyCurrencyFormat(ws3, ['C', 'D', 'E'], 2, s3DataEnd);
+                setSumFormulaCell(ws3, 'C', s3TotalRow, s3DataEnd, true);
+                setSumFormulaCell(ws3, 'D', s3TotalRow, s3DataEnd, true);
+                setSumFormulaCell(ws3, 'E', s3TotalRow, s3DataEnd, true);
+
                 ws1['!cols'] = [
                     { wch: 5 }, { wch: 14 }, { wch: 18 }, { wch: 11 }, { wch: 18 },
-                    { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 24 }, { wch: 16 },
-                    { wch: 15 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 20 },
-                    { wch: 14 }, { wch: 34 }, { wch: 15 }, { wch: 28 }
+                    { wch: 32 }, { wch: 18 }, { wch: 18 }, { wch: 24 }, { wch: 16 },
+                    { wch: 15 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 26 },
+                    { wch: 14 }, { wch: 36 }, { wch: 15 }, { wch: 28 }
                 ];
                 ws2['!cols'] = [
-                    { wch: 32 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 18 }
+                    { wch: 34 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 18 }
+                ];
+                ws3['!cols'] = [
+                    { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 18 }, { wch: 18 }
                 ];
 
-                XLSX.utils.book_append_sheet(wb, ws1, "Elenco Fatture");
-                XLSX.utils.book_append_sheet(wb, ws2, "Riepilogo per Fornitore");
+                XLSX.utils.book_append_sheet(wb, ws1, "Elenco Documenti");
+                XLSX.utils.book_append_sheet(wb, ws2, "Riepilogo Fornitori e RT");
+                XLSX.utils.book_append_sheet(wb, ws3, "Riepilogo Aliquote IVA");
 
                 const today = new Date().toISOString().slice(0, 10);
-                XLSX.writeFile(wb, `Fatture_Elettroniche_${today}.xlsx`);
-                showToast('File Excel (.xlsx) scaricato con successo!', 'success');
+                XLSX.writeFile(wb, `Fatture_Corrispettivi_${today}.xlsx`);
+                showToast('File Excel (.xlsx) a 3 fogli scaricato con successo!', 'success');
             } catch (err) {
                 console.error(err);
                 showToast('Errore durante la generazione del file Excel.', 'warning');
@@ -1222,24 +1785,26 @@
         }
 
         function downloadCSV() {
-            const headers = ["Data", "Numero", "Tipo", "Fornitore", "PIVA_Fornitore", "Imponibile", "IVA", "Aliquote", "Totale", "Pagamento", "Scadenza", "Descrizione", "File"];
+            const headers = ["Data", "Numero", "Tipo", "Emittente_Fornitore", "PIVA_Matricola", "Imponibile", "IVA", "Aliquote", "Totale", "Pagamento_Incasso", "Scadenza", "Descrizione", "File"];
             const lines = [headers.join(";")];
+
+            const cleanCsvField = (val) => String(val || "").replace(/[\r\n]+/g, ' ').replace(/"/g, '""');
 
             appState.invoices.forEach(inv => {
                 const row = [
-                    inv.data,
-                    `"${inv.numero.replace(/"/g, '""')}"`,
+                    formatDateIT(inv.data),
+                    `"${cleanCsvField(inv.numero)}"`,
                     inv.tipoCode,
-                    `"${inv.fornitore.replace(/"/g, '""')}"`,
+                    `"${cleanCsvField(inv.fornitore)}"`,
                     inv.pivaFornitore,
                     inv.imponibile.toFixed(2).replace('.', ','),
                     inv.iva.toFixed(2).replace('.', ','),
-                    `"${inv.aliquote}"`,
+                    `"${cleanCsvField(inv.aliquote)}"`,
                     inv.totale.toFixed(2).replace('.', ','),
-                    `"${inv.modalitaPagamento}"`,
-                    inv.scadenza,
-                    `"${inv.descrizione.replace(/"/g, '""')}"`,
-                    `"${inv.fileName}"`
+                    `"${cleanCsvField(inv.modalitaPagamento)}"`,
+                    `"${cleanCsvField(inv.scadenza)}"`,
+                    `"${cleanCsvField(inv.descrizione)}"`,
+                    `"${cleanCsvField(inv.fileName)}"`
                 ];
                 lines.push(row.join(";"));
             });
@@ -1248,14 +1813,14 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `Fatture_Elettroniche_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.download = `Fatture_Corrispettivi_${new Date().toISOString().slice(0, 10)}.csv`;
             a.click();
             URL.revokeObjectURL(url);
             showToast('File CSV (separatore ;) scaricato!', 'success');
         }
 
         // =========================================================================
-        // MODALE CHECKOUT & SBLOCCO LICENZA
+        // MODALE CHECKOUT STRIPE & ATTIVAZIONE LICENZA
         // =========================================================================
         function openCheckoutModal() {
             document.getElementById('checkout-modal').classList.remove('hidden');
@@ -1266,41 +1831,50 @@
             document.getElementById('checkout-modal').classList.add('hidden');
         }
 
-        function handleRealCheckoutClick(e) {
-            if (CONFIG.CHECKOUT_URL === "https://lemonsqueezy.com") {
-                e.preventDefault();
-                showToast('Collega il tuo link Lemon Squeezy o Stripe in CONFIG.CHECKOUT_URL per incassare!', 'info');
+        function handleRealCheckoutClick() {
+            try {
+                if (appState.invoices.length > 0) {
+                    sessionStorage.setItem(CONFIG.SESSION_BACKUP_KEY, JSON.stringify(appState.invoices));
+                }
+            } catch (err) {
+                console.warn('Backup sessionStorage non disponibile:', err);
             }
         }
 
         function verifyLicenseCode() {
             const code = (document.getElementById('license-code-input').value || "").trim().toUpperCase();
-            if (CONFIG.VALID_TEST_CODES.includes(code) || code.startsWith("LS-")) {
-                unlockAppSuccess(code);
-            } else {
-                showToast('Codice licenza non valido. Usa il pulsante Test qui sotto per provare!', 'warning');
+            const match = code.match(/^FXP-202[6-9]-([0-9A-F]{4})$/);
+            let isValid = false;
+            if (match) {
+                const hex = match[1];
+                const sum = parseInt(hex.slice(0, 2), 16) + parseInt(hex.slice(2, 4), 16);
+                isValid = (sum === 0x11D);
             }
-        }
 
-        function unlockAppSuccess(sourceLabel) {
-            appState.isUnlocked = true;
-            localStorage.setItem('fatturaexcel_unlocked', 'true');
-            closeCheckoutModal();
-            updateLicenseUI();
-            updatePaywallVisibility();
-            renderTable();
-            showToast('Esportazione illimitata sbloccata! Ora puoi scaricare l’Excel.', 'success');
+            if (isValid) {
+                appState.isUnlocked = true;
+                localStorage.setItem(CONFIG.UNLOCK_STORAGE_KEY, 'true');
+                closeCheckoutModal();
+                updateLicenseUI();
+                updatePaywallVisibility();
+                renderTable();
+                lucide.createIcons();
+                showToast('Licenza Pro attivata! Ora puoi scaricare l’Excel completo.', 'success');
+            } else {
+                showToast('Codice non valido. Completa il pagamento per lo sblocco automatico.', 'warning');
+            }
         }
 
         function updateLicenseUI() {
             const btn = document.getElementById('header-unlock-btn');
             if (appState.isUnlocked && btn) {
                 btn.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i><span>Licenza Pro Attiva</span>`;
+                lucide.createIcons();
             }
         }
 
         // =========================================================================
-        // GENERATORE DI 6 FATTURE DEMO REALISTICHE (INCLUSO .P7M E TD04)
+        // GENERATORE DI 6 DOCUMENTI DEMO REALISTICI (FATTURE, .P7M, TD04 E COR10)
         // =========================================================================
         function loadDemoInvoices() {
             const demoXmlSamples = [
@@ -1343,8 +1917,19 @@
 </p:FatturaElettronica>`
                 },
                 {
+                    name: "FISCALE_08-11-2026_COR10.xml",
+                    xml: `<?xml version="1.0" encoding="UTF-8"?>
+<r:DatiCorrispettivi xmlns:r="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/corrispettivi/dati/v1.0" versione="COR10">
+  <Trasmissione><Progressivo>1406</Progressivo><Formato>COR10</Formato><IdDispositivo>99IEB044364</IdDispositivo></Trasmissione>
+  <DataOraRilevazione>2026-11-08T16:11:12</DataOraRilevazione>
+  <DatiRT>
+    <Riepilogo><IVA><AliquotaIVA>10.00</AliquotaIVA><Imposta>95.25</Imposta></IVA><Ammontare>952.45</Ammontare><ImportoParziale>952.45</ImportoParziale></Riepilogo>
+    <Totali><NumeroDocCommerciali>12</NumeroDocCommerciali><PagatoContanti>132.00</PagatoContanti><PagatoElettronico>915.70</PagatoElettronico></Totali>
+  </DatiRT>
+</r:DatiCorrispettivi>`
+                },
+                {
                     name: "IT08821930152_9011.xml.p7m",
-                    // Simuliamo un file .p7m con intestazione binaria ASN.1 prima del tag <?xml e firma PKCS#7 in coda
                     prefixBytes: [0x30, 0x82, 0x09, 0x1A, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02],
                     suffixBytes: [0x31, 0x82, 0x02, 0x10, 0x30, 0x82, 0x02, 0x0C, 0x02, 0x01, 0x01],
                     xml: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1356,12 +1941,6 @@
         <Anagrafica><Denominazione>ENERGIA VERDE ITALIA SPA</Denominazione></Anagrafica>
       </DatiAnagrafici>
     </CedentePrestatore>
-    <CessionarioCommittente>
-      <DatiAnagrafici>
-        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>09876540961</IdCodice></IdFiscaleIVA>
-        <Anagrafica><Denominazione>STUDIO ASSOCIATO ROSSI &amp; PARTNERS</Denominazione></Anagrafica>
-      </DatiAnagrafici>
-    </CessionarioCommittente>
   </FatturaElettronicaHeader>
   <FatturaElettronicaBody>
     <DatiGenerali>
@@ -1378,37 +1957,6 @@
     </DatiBeniServizi>
     <DatiPagamento>
       <DettaglioPagamento><ModalitaPagamento>MP19</ModalitaPagamento><DataScadenzaPagamento>2026-11-20</DataScadenzaPagamento></DettaglioPagamento>
-    </DatiPagamento>
-  </FatturaElettronicaBody>
-</FatturaElettronica>`
-                },
-                {
-                    name: "IT02114580549_0088.xml",
-                    xml: `<?xml version="1.0" encoding="UTF-8"?>
-<FatturaElettronica versione="FPR12">
-  <FatturaElettronicaHeader>
-    <CedentePrestatore>
-      <DatiAnagrafici>
-        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>02114580549</IdCodice></IdFiscaleIVA>
-        <Anagrafica><Denominazione>FORNITURE UFFICIO PERUGIA SNC</Denominazione></Anagrafica>
-      </DatiAnagrafici>
-    </CedentePrestatore>
-  </FatturaElettronicaHeader>
-  <FatturaElettronicaBody>
-    <DatiGenerali>
-      <DatiGeneraliDocumento>
-        <TipoDocumento>TD01</TipoDocumento>
-        <Data>2026-10-25</Data>
-        <Numero>88/A</Numero>
-        <ImportoTotaleDocumento>353.80</ImportoTotaleDocumento>
-      </DatiGeneraliDocumento>
-    </DatiGenerali>
-    <DatiBeniServizi>
-      <DettaglioLinee><Descrizione>Toner laser alta capacità e risme carta A4</Descrizione></DettaglioLinee>
-      <DatiRiepilogo><AliquotaIVA>22.00</AliquotaIVA><ImponibileImporto>290.00</ImponibileImporto><Imposta>63.80</Imposta></DatiRiepilogo>
-    </DatiBeniServizi>
-    <DatiPagamento>
-      <DettaglioPagamento><ModalitaPagamento>MP12</ModalitaPagamento><DataScadenzaPagamento>2026-11-30</DataScadenzaPagamento></DettaglioPagamento>
     </DatiPagamento>
   </FatturaElettronicaBody>
 </FatturaElettronica>`
@@ -1523,12 +2071,18 @@
                 combined.set(suffix, prefix.length + xmlBytes.length);
 
                 const parsed = parseFatturaBuffer(combined.buffer, sample.name);
-                appState.invoices.push(...parsed);
-                loaded += parsed.length;
+                for (const doc of parsed) {
+                    if (!appState.seenKeys.has(doc.dedupeKey)) {
+                        appState.seenKeys.add(doc.dedupeKey);
+                        doc.originalIndex = appState.invoices.length;
+                        appState.invoices.push(doc);
+                        loaded++;
+                    }
+                }
             });
 
             refreshWorkspace();
-            showToast(`Caricate ${loaded} fatture demo reali (inclusi file .p7m e Nota di Credito TD04)!`, 'success');
+            showToast(`Caricati ${loaded} documenti demo reali (Fatture, .p7m, TD04 e Corrispettivi RT)!`, 'success');
         }
 
         // =========================================================================
@@ -1543,8 +2097,9 @@
 
         function formatDateIT(isoDate) {
             if (!isoDate || isoDate === "-") return "-";
-            const parts = isoDate.split("-");
-            if (parts.length === 3) {
+            const cleanDate = String(isoDate).trim().slice(0, 10);
+            const parts = cleanDate.split("-");
+            if (parts.length === 3 && parts[0].length === 4) {
                 return `${parts[2]}/${parts[1]}/${parts[0]}`;
             }
             return isoDate;
